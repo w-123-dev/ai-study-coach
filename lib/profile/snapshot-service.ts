@@ -8,6 +8,9 @@ export interface SnapshotInput {
   difficulties: string[];
   subjectHours?: Record<string, number>;
   subjectCompletion?: Record<string, number>;
+  emotion?: string;
+  energy?: string;
+  memo?: string;
 }
 
 /**
@@ -55,6 +58,9 @@ export async function createOrUpdateSnapshot(
       subject_hours: input.subjectHours ?? {},
       subject_completion: input.subjectCompletion ?? {},
       emotion_trend: emotionTrend,
+      emotion: input.emotion ?? null,
+      energy: input.energy ?? null,
+      memo: input.memo ?? null,
     },
     { onConflict: "user_id,date" }
   );
@@ -149,6 +155,9 @@ export interface SnapshotRecord {
   subject_hours: Record<string, number>;
   subject_completion: Record<string, number>;
   emotion_trend: string;
+  emotion: string | null;
+  energy: string | null;
+  memo: string | null;
   ai_summary: string | null;
 }
 

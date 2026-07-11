@@ -18,8 +18,14 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  SmilePlus,
+  BatteryFull,
+  BatteryLow,
+  Frown,
+  Edit3
 } from "lucide-react";
-import type { StudentProfile, StudyPlan, PlanTask } from "@/lib/types";
+import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib/types";
+import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
 
 interface TodayCheckin {
   id: string;
@@ -69,11 +75,14 @@ export default function DashboardPage() {
   const [studyHours, setStudyHours] = useState(6);
   const [checkinStatus, setCheckinStatus] = useState("normal");
   const [difficulties, setDifficulties] = useState("");
+  const [emotion, setEmotion] = useState("normal");
+  const [energy, setEnergy] = useState("medium");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // 已打卡任务记录（用于今日打卡弹窗）
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
+  const [taskUpdates, setTaskUpdates] = useState<Record<string, {completed: boolean; actualHours: number}>>({});
 
   const loadTasks = useCallback(async (week: number) => {
     try {
@@ -250,7 +259,13 @@ export default function DashboardPage() {
           tasksTotal: totalCount,
           status: checkinStatus,
           difficulties,
-          energyLevel: checkinStatus === "energetic" ? 5 : checkinStatus === "normal" ? 3 : 2,
+          emotion,
+          energy,
+          memo: difficulties,
+          energyLevel: energy === "high" ? 5 : energy === "medium" ? 3 : 1,
+          taskUpdates: Object.entries(taskUpdates)
+            .filter(([, v]) => v.completed)
+            .map(([taskId, v]) => ({ taskId, status: "completed", actualHours: v.actualHours })),
         }),
       });
 
@@ -513,6 +528,47 @@ export default function DashboardPage() {
                     </div>
 
                     <div>
+                      <label className="block text-xs font-medium text-gray-600">今天的心情</label>
+                      <div className="mt-1.5 flex gap-2">
+                        {(["happy","normal","anxious","tired"] as Emotion[]).map((key) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEmotion(key)}
+                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
+                              emotion === key
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-200 text-gray-600 hover:border-gray-300"
+                            }`}
+                          >
+                            {EMOTION_LABELS[key]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">今天的精力</label>
+                      <div className="mt-1.5 flex gap-2">
+                        {(["high","medium","low"] as Energy[]).map((key) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEnergy(key)}
+                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
+                              energy === key
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-200 text-gray-600 hover:border-gray-300"
+                            }`}
+                          >
+                            {key === "high" ? <BatteryFull className="h-4 w-4" /> : key === "low" ? <BatteryLow className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                            {ENERGY_LABELS[key]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
                       <label className="block text-xs font-medium text-gray-600">今天的学习状态</label>
                       <div className="mt-1.5 flex gap-2">
                         {statusOptions.map((opt) => (
@@ -544,10 +600,60 @@ export default function DashboardPage() {
                       />
                     </div>
 
-                    <div className="rounded-lg bg-gray-50 p-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">已完成任务</span>
-                        <span className="font-medium text-gray-900">{completedCount}/{totalCount}</span>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">今日任务完成情况</label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {tasks.map((task) => {
+                          const update = taskUpdates[task.id] || { completed: false, actualHours: 0 };
+                          return (
+                            <div key={task.id} className="flex items-center gap-2 rounded-lg border border-gray-200 p-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTaskUpdates((prev) => ({
+                                    ...prev,
+                                    [task.id]: {
+                                      completed: !(prev[task.id]?.completed ?? false),
+                                      actualHours: prev[task.id]?.actualHours || task.planned_hours,
+                                    },
+                                  }));
+                                }}
+                                className={`shrink-0 rounded-full border-2 p-0.5 ${
+                                  update.completed
+                                    ? "border-green-500 bg-green-500 text-white"
+                                    : "border-gray-300"
+                                }`}
+                              >
+                                {update.completed ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Circle className="h-3.5 w-3.5 text-gray-300" />
+                                )}
+                              </button>
+                              <div className="min-w-0 flex-1">
+                                <span className="text-xs font-medium text-gray-700">{task.subject} · {task.content}</span>
+                                <div className="text-[11px] text-gray-400">计划 {task.planned_hours}h</div>
+                              </div>
+                              {update.completed && (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={16}
+                                  step={0.5}
+                                  value={update.actualHours}
+                                  onChange={(e) => {
+                                    setTaskUpdates((prev) => ({
+                                      ...prev,
+                                      [task.id]: { ...prev[task.id], actualHours: Number(e.target.value) },
+                                    }));
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-16 rounded-md border border-gray-200 px-2 py-1 text-center text-xs text-gray-700 focus:border-gray-400 focus:outline-none"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

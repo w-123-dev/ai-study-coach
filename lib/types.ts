@@ -67,6 +67,27 @@ export type CoachMode =
   | "analytic"     // 数据分析型
   | "sprint";      // 冲刺强化型
 
+/** 情绪状态 */
+export type Emotion = "happy" | "normal" | "anxious" | "tired";
+
+/** 精力等级 */
+export type Energy = "high" | "medium" | "low";
+
+/** 情绪中文映射 */
+export const EMOTION_LABELS: Record<Emotion, string> = {
+  happy: "开心",
+  normal: "正常",
+  anxious: "焦虑",
+  tired: "疲惫",
+};
+
+/** 精力中文映射 */
+export const ENERGY_LABELS: Record<Energy, string> = {
+  high: "高",
+  medium: "中",
+  low: "低",
+};
+
 /** 每日快照 */
 export interface DailySnapshot {
   id: string;
@@ -79,6 +100,9 @@ export interface DailySnapshot {
   subject_hours: Record<string, number>;
   subject_completion: Record<string, number>;
   emotion_trend: string;
+  emotion: Emotion | null;
+  energy: Energy | null;
+  memo: string | null;
   ai_summary: string | null;
   created_at: string;
 }
@@ -159,6 +183,7 @@ export interface PlanTask {
   difficulty: number;
   delay_count: number;
   period: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }

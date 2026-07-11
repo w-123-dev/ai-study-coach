@@ -4,6 +4,7 @@ import { callDeepSeek } from "@/lib/deepseek";
 import { buildCheckinPrompt } from "@/lib/prompts";
 import { createOrUpdateSnapshot } from "@/lib/profile/snapshot-service";
 import { buildStatusSummary } from "@/lib/memory/context-builder";
+import { updateTaskStatus } from "@/lib/plan/plan-task-service";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const body = await safeParseJSON<{
@@ -15,6 +16,10 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     subjectHours?: Record<string, number>;
     subjectCompletion?: Record<string, number>;
     energyLevel?: number;
+    emotion?: string;
+    energy?: string;
+    memo?: string;
+    taskUpdates?: { taskId: string; status: string; actualHours?: number }[];
   }>(request, {});
 
   const missing = requireFields(body, ["studyHours", "tasksCompleted"]);
@@ -26,6 +31,17 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   const { data: profile } = await getStudentProfile(supabase, user.id);
   if (!profile) {
     return { error: "请先填写考研信息", _status: 400 };
+  }
+
+  // ===== 更新 plan_tasks 任务状态 =====
+  const taskUpdates = body.taskUpdates ?? [];
+  for (const update of taskUpdates) {
+    await updateTaskStatus(
+      supabase,
+      update.taskId,
+      update.status as "pending" | "in_progress" | "completed" | "delayed",
+      update.actualHours
+    );
   }
 
   // 构建计划摘要
@@ -74,7 +90,7 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     return { error: "保存失败：" + upsertError.message, _status: 500 };
   }
 
-  // 异步创建每日快照
+  // 异步创建每日快照（带 emotion/energy）
   const energyMap: Record<string, number> = {
     energetic: 5,
     normal: 3,
@@ -93,6 +109,9 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     difficulties: difficultiesArray,
     subjectHours: body.subjectHours,
     subjectCompletion: body.subjectCompletion,
+    emotion: body.emotion,
+    energy: body.energy,
+    memo: body.memo,
   }).catch((e) => console.error("[Checkin] 创建快照失败:", e));
 
   return { feedback };
