@@ -1,3 +1,5 @@
+// ===== 原始 V1 类型（保持不变） =====
+
 export interface StudentProfile {
   id: string;
   user_id: string;
@@ -43,4 +45,120 @@ export interface StudyPlan {
   stages: StudyPlanStage[];
   weekly_plan: WeeklyPlan[];
   daily_routine: DailyRoutine;
+}
+
+// ===== V2.0 新增类型 =====
+
+/** AI 记忆分类 */
+export type MemoryCategory =
+  | "goal"
+  | "habit"
+  | "weakness"
+  | "strength"
+  | "personality"
+  | "preference"
+  | "concern"
+  | "progress";
+
+/** 教练模式 */
+export type CoachMode =
+  | "strict"       // 严格监督型
+  | "gentle"       // 温和陪伴型
+  | "analytic"     // 数据分析型
+  | "sprint";      // 冲刺强化型
+
+/** 每日快照 */
+export interface DailySnapshot {
+  id: string;
+  user_id: string;
+  date: string;
+  total_hours: number;
+  completion_rate: number;
+  energy_level: number;
+  difficulties: string[];
+  subject_hours: Record<string, number>;
+  subject_completion: Record<string, number>;
+  emotion_trend: string;
+  ai_summary: string | null;
+  created_at: string;
+}
+
+/** 会话摘要 */
+export interface SessionSummary {
+  id: string;
+  user_id: string;
+  session_start: string;
+  session_end: string | null;
+  session_type: string;
+  key_topics: string[];
+  user_concerns: string[];
+  ai_suggestions: string[];
+  follow_up_asked: boolean;
+  mood: string | null;
+  message_count: number;
+  created_at: string;
+}
+
+/** 用户长期记忆 */
+export interface UserMemory {
+  id: string;
+  user_id: string;
+  category: MemoryCategory;
+  content: string;
+  confidence: number;
+  source: string;
+  context_snapshot: Record<string, unknown>;
+  last_reinforced_at: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/** 提醒/通知 */
+export interface Reminder {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string;
+  status: "pending" | "sent" | "dismissed";
+  created_at: string;
+  sent_at: string | null;
+}
+
+/** AI 教练消息 */
+export interface CoachMessage {
+  id: string;
+  user_id: string;
+  session_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+
+// ===== 动态计划系统 =====
+
+/** 计划任务状态 */
+export type PlanTaskStatus = "pending" | "in_progress" | "completed" | "delayed";
+
+/** 计划任务优先级 */
+export type TaskPriority = "high" | "medium" | "low";
+
+/** 计划任务追踪 */
+export interface PlanTask {
+  id: string;
+  user_id: string;
+  week_number: number;
+  subject: string;
+  content: string;
+  planned_hours: number;
+  actual_hours: number;
+  status: PlanTaskStatus;
+  priority: TaskPriority;
+  difficulty: number;
+  delay_count: number;
+  period: string | null;
+  created_at: string;
+  updated_at: string;
 }

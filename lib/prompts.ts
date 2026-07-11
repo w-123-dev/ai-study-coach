@@ -22,7 +22,6 @@ export function buildPlanPrompt(profile: StudentProfile): string {
       : "无特别薄弱科目";
 
   return `你是一名经验丰富的考研规划师。请根据以下学生信息生成一份个性化的考研学习计划。
-
 学生信息：
 - 目标学校：${profile.school}
 - 目标专业：${profile.major}
@@ -31,14 +30,12 @@ export function buildPlanPrompt(profile: StudentProfile): string {
 - 薄弱科目：${weakText}
 - 每天可学习时间：${profile.daily_hours}小时
 - 距离考研：约${remainingDays}天
-
 规则：
 1. 不保证上岸，不制造焦虑，不提供虚假学校信息
 2. 以真诚、务实、鼓励的语气
 3. 考虑科目难度和用户基础，优先安排薄弱科目
 4. 输出的计划要可执行，不要过于理想化
 5. 必须输出纯JSON，不能包含markdown代码块标记
-
 输出JSON格式（严格按此结构）：
 {
   "stages": [
@@ -76,7 +73,8 @@ export function buildCheckinPrompt(
     status: string;
     difficulties: string;
   },
-  planSummary: string
+  planSummary: string,
+  extraContext?: string
 ): string {
   const statusLabels: Record<string, string> = {
     energetic: "精力充沛",
@@ -88,13 +86,16 @@ export function buildCheckinPrompt(
     ? Math.round((input.tasksCompleted / input.tasksTotal) * 100)
     : 0;
 
-  return `你是一位务实的数据型考研教练。请根据学生今日学习数据，生成简短反馈。
+  const contextSection = extraContext
+    ? `\n背景信息（AI对用户的了解）：\n${extraContext}\n`
+    : "";
 
+  return `你是一位务实的考研教练。请根据学生今日学习数据，生成简短反馈。
 学生背景：
 - 目标：${profile.school} ${profile.major}
 - 考试科目：${profile.subjects.join("、")}
 - 薄弱科目：${profile.weak_subjects.length > 0 ? profile.weak_subjects.join("、") : "无"}
-
+${contextSection}
 今日学习数据：
 - 学习时长：${input.studyHours}小时
 - 完成任务：${input.tasksCompleted}/${input.tasksTotal} (${completionRate}%)
@@ -111,11 +112,13 @@ export function buildCheckinPrompt(
 5. 不承诺考试结果
 6. 给出的建议要具体可执行
 7. 如果完成情况好，给出确认；如果不好，直接分析原因
-8. 用中文，语气是教练对学生，专业但有温度`;
+8. 结合背景信息（如果有）给出更有针对性的建议
+9. 用中文，语气是教练对学生，专业但有温度`;
 }
 
 export function buildChatSystemPrompt(
   profile: StudentProfile,
+  memoryContext?: string
 ): string {
   const subjectsText = profile.subjects.join("、");
   const weakText = profile.weak_subjects.length > 0
@@ -128,8 +131,11 @@ export function buildChatSystemPrompt(
     (examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  return `你是一名考研私人教练。以下是你的学生信息：
+  const contextSection = memoryContext
+    ? `\n\n===== 以下是 AI 对你历史情况的了解 =====\n${memoryContext}\n===== 掌握以上信息后，给出针对性地回复 =====`
+    : "";
 
+  return `你是一名考研私人教练。以下是你的学生信息：
 学生档案：
 - 目标学校：${profile.school}
 - 目标专业：${profile.major}
@@ -143,11 +149,10 @@ export function buildChatSystemPrompt(
 1. 以考研私人教练的身份对话，专业、务实、直接
 2. 你的回答范围包括：学习计划调整、拖延问题、复习策略、考试压力管理
 3. 每次回答要结合学生的具体目标和个人情况，给出针对性建议
-4. 不替代心理咨询，遇到严重心理问题建议寻求专业帮助
+4. 不代替心理咨询，遇到严重心理问题建议寻求专业帮助
 5. 绝对不说"一定能考上"或做出任何结果保证
 6. 用中文交流，语气专业但有温度
 7. 如果你需要了解学生的进度，可以询问
 8. 建议要具体、可执行，不要空泛
-
-记住：你不只是一个聊天机器人，你是学生的考研教练。`;
+记住：你不仅是聊天机器人，你是学生的考研教练。${contextSection}`;
 }

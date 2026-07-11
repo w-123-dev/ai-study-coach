@@ -1,87 +1,99 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { NextRequest } from "next/server";
+import { withAuth, getStudentProfile, safeParseJSON, requireFields } from "@/lib/api-utils";
 import { callDeepSeek } from "@/lib/deepseek";
 import { buildCheckinPrompt } from "@/lib/prompts";
+import { createOrUpdateSnapshot } from "@/lib/profile/snapshot-service";
+import { buildStatusSummary } from "@/lib/memory/context-builder";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { supabase, supabaseResponse } = createClient(request);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+export const POST = withAuth(async (request, { user, supabase }) => {
+  const body = await safeParseJSON<{
+    studyHours?: number;
+    tasksCompleted?: number;
+    tasksTotal?: number;
+    status?: string;
+    difficulties?: string;
+    subjectHours?: Record<string, number>;
+    subjectCompletion?: Record<string, number>;
+    energyLevel?: number;
+  }>(request, {});
 
-    if (!user) {
-      return NextResponse.json({ error: "未登录" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { studyHours, tasksCompleted, tasksTotal, status, difficulties } = body;
-
-    if (studyHours == null || tasksCompleted == null) {
-      return NextResponse.json(
-        { error: "缺少必要字段" },
-        { status: 400 }
-      );
-    }
-
-    // 读取用户资料
-    const { data: profile } = await supabase
-      .from("student_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json(
-        { error: "请先填写考研信息" },
-        { status: 400 }
-      );
-    }
-
-    // 构建计划摘要
-    let planSummary = "备考中";
-    if (profile.study_plan?.stages?.[0]) {
-      const first = profile.study_plan.stages[0];
-      planSummary = `${first.name}：${first.focus}`;
-    }
-
-    // 生成AI反馈
-    const prompt = buildCheckinPrompt(profile, {
-      studyHours,
-      tasksCompleted,
-      tasksTotal,
-      status,
-      difficulties,
-    }, planSummary);
-
-    const feedback = await callDeepSeek(prompt);
-
-    // 保存打卡记录
-    const today = new Date().toISOString().split("T")[0];
-    const { error: upsertError } = await supabase.from("daily_checkins").upsert(
-      {
-        user_id: user.id,
-        checkin_date: today,
-        study_hours: studyHours,
-        tasks_completed: tasksCompleted,
-        tasks_total: tasksTotal,
-        status,
-        difficulties,
-        ai_feedback: feedback,
-      },
-      { onConflict: "user_id,checkin_date" }
-    );
-
-    if (upsertError) {
-      return NextResponse.json(
-        { error: "保存失败：" + upsertError.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ feedback });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "未知错误";
-    return NextResponse.json({ error: message }, { status: 500 });
+  const missing = requireFields(body, ["studyHours", "tasksCompleted"]);
+  if (missing) {
+    return { error: missing, _status: 400 };
   }
-}
+
+  // 读取用户资料
+  const { data: profile } = await getStudentProfile(supabase, user.id);
+  if (!profile) {
+    return { error: "请先填写考研信息", _status: 400 };
+  }
+
+  // 构建计划摘要
+  let planSummary = "备考中";
+  if (profile.study_plan?.stages?.[0]) {
+    const first = profile.study_plan.stages[0];
+    planSummary = `${first.name}：${first.focus}`;
+  }
+
+  // 加载用户近期状态上下文（用于注入 checkin prompt）
+  const statusContext = await buildStatusSummary(supabase, user.id);
+
+  // 生成 AI 反馈（带状态上下文）
+  const prompt = buildCheckinPrompt(
+    profile,
+    {
+      studyHours: body.studyHours!,
+      tasksCompleted: body.tasksCompleted!,
+      tasksTotal: body.tasksTotal ?? 0,
+      status: body.status ?? "normal",
+      difficulties: body.difficulties ?? "",
+    },
+    planSummary,
+    statusContext || undefined
+  );
+
+  const feedback = await callDeepSeek(prompt);
+
+  // 保存打卡记录
+  const today = new Date().toISOString().split("T")[0];
+  const { error: upsertError } = await supabase.from("daily_checkins").upsert(
+    {
+      user_id: user.id,
+      checkin_date: today,
+      study_hours: body.studyHours!,
+      tasks_completed: body.tasksCompleted!,
+      tasks_total: body.tasksTotal ?? 0,
+      status: body.status ?? "normal",
+      difficulties: body.difficulties ?? "",
+      ai_feedback: feedback,
+    },
+    { onConflict: "user_id,checkin_date" }
+  );
+
+  if (upsertError) {
+    return { error: "保存失败：" + upsertError.message, _status: 500 };
+  }
+
+  // 异步创建每日快照
+  const energyMap: Record<string, number> = {
+    energetic: 5,
+    normal: 3,
+    tired: 2,
+  };
+
+  const difficultiesArray = body.difficulties
+    ? body.difficulties.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
+  createOrUpdateSnapshot(supabase, user.id, today, {
+    totalHours: body.studyHours!,
+    tasksCompleted: body.tasksCompleted!,
+    tasksTotal: body.tasksTotal ?? 0,
+    energyLevel: body.energyLevel ?? energyMap[body.status ?? "normal"] ?? 3,
+    difficulties: difficultiesArray,
+    subjectHours: body.subjectHours,
+    subjectCompletion: body.subjectCompletion,
+  }).catch((e) => console.error("[Checkin] 创建快照失败:", e));
+
+  return { feedback };
+});

@@ -16,16 +16,10 @@ import {
   Brain,
   Clock,
   Zap,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import type { StudentProfile, StudyPlan } from "@/lib/types";
-
-interface DailyTask {
-  id: string;
-  task: string;
-  subject: string;
-  date: string;
-  status: "pending" | "completed";
-}
+import type { StudentProfile, StudyPlan, PlanTask } from "@/lib/types";
 
 interface TodayCheckin {
   id: string;
@@ -43,12 +37,29 @@ const statusOptions = [
   { value: "tired", label: "比较疲惫", icon: Clock },
 ];
 
+/** 科目颜色映射 */
+const subjectColors: Record<string, string> = {
+  "数学": "bg-blue-50 text-blue-700 border-blue-200",
+  "英语": "bg-green-50 text-green-700 border-green-200",
+  "政治": "bg-red-50 text-red-700 border-red-200",
+  "专业课": "bg-purple-50 text-purple-700 border-purple-200",
+};
+
+function getSubjectColor(subject: string): string {
+  for (const [key, color] of Object.entries(subjectColors)) {
+    if (subject.includes(key)) return color;
+  }
+  return "bg-gray-50 text-gray-700 border-gray-200";
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [plan, setPlan] = useState<StudyPlan | null>(null);
-  const [tasks, setTasks] = useState<DailyTask[]>([]);
+  const [tasks, setTasks] = useState<PlanTask[]>([]);
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [hasPlan, setHasPlan] = useState(false);
   const [todayStr, setTodayStr] = useState("");
   const [streak, setStreak] = useState(0);
 
@@ -58,22 +69,36 @@ export default function DashboardPage() {
   const [studyHours, setStudyHours] = useState(6);
   const [checkinStatus, setCheckinStatus] = useState("normal");
   const [difficulties, setDifficulties] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    setTodayStr(`${y}-${m}-${d}`);
+  // 已打卡任务记录（用于今日打卡弹窗）
+  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
+
+  const loadTasks = useCallback(async (week: number) => {
+    try {
+      const res = await fetch(`/api/plan/tasks?week=${week}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTasks(data.tasks ?? []);
+      setCurrentWeek(data.currentWeek ?? week);
+      setHasPlan(data.hasPlan ?? false);
+
+      // 记录已完成的任务 ID
+      setCompletedTaskIds(
+        (data.tasks ?? [])
+          .filter((t: PlanTask) => t.status === "completed")
+          .map((t: PlanTask) => t.id)
+      );
+    } catch (e) {
+      console.warn("[Dashboard] 加载任务失败:", e);
+    }
   }, []);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       router.push("/login");
@@ -133,24 +158,27 @@ export default function DashboardPage() {
         }
         setStreak(count);
       }
-
-      // 读取今日任务
-      const { data: taskData } = await supabase
-        .from("study_tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("date", todayStr)
-        .order("subject");
-
-      if (taskData && taskData.length > 0) {
-        setTasks(taskData);
-      } else if (profileData.study_plan) {
-        await generateTodayTasks(supabase, user.id, profileData.study_plan);
-      }
     }
 
     setLoading(false);
   }, [router, todayStr]);
+
+  // 加载本周任务
+  useEffect(() => {
+    if (todayStr && profile) {
+      // 先从 profile 拿到 currentWeek，再加载
+      const week = profile.study_plan
+        ? calculateClientWeek(profile.study_plan)
+        : 1;
+      setCurrentWeek(week);
+      loadTasks(week);
+    }
+  }, [todayStr, profile, loadTasks]);
+
+  useEffect(() => {
+    const today = new Date();
+    setTodayStr(today.toISOString().split("T")[0]);
+  }, []);
 
   useEffect(() => {
     if (todayStr) {
@@ -158,47 +186,51 @@ export default function DashboardPage() {
     }
   }, [todayStr, loadData]);
 
-  async function generateTodayTasks(
-    supabase: ReturnType<typeof createClient>,
-    userId: string,
-    studyPlan: StudyPlan
-  ) {
-    try {
-      const firstWeek = studyPlan.weekly_plan?.[0];
-      if (!firstWeek?.tasks) return;
-
-      const newTasks = firstWeek.tasks.map((t) => ({
-        user_id: userId,
-        task: t.content,
-        subject: t.subject,
-        date: todayStr,
-        status: "pending" as const,
-      }));
-
-      const { data } = await supabase
-        .from("study_tasks")
-        .insert(newTasks)
-        .select();
-
-      if (data) {
-        setTasks(data);
-      }
-    } catch (e) {
-      console.warn("生成今日任务失败:", e);
-    }
+  /** 客户端版周计算（与服务端一致） */
+  function calculateClientWeek(plan: StudyPlan): number {
+    const firstWeek = plan.weekly_plan?.[0];
+    if (!firstWeek?.period) return 1;
+    const startDateStr = firstWeek.period.split("~")[0]?.trim();
+    if (!startDateStr) return 1;
+    const startDate = new Date(startDateStr);
+    const today = new Date();
+    const diffMs = today.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(Math.floor(diffDays / 7) + 1, plan.weekly_plan.length));
   }
 
   async function toggleTask(taskId: string, currentStatus: string) {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
-    const supabase = createClient();
 
+    // 乐观更新 UI
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === taskId ? { ...t, status: newStatus as "pending" | "completed" } : t
+        t.id === taskId ? { ...t, status: newStatus as PlanTask["status"] } : t
       )
     );
 
-    await supabase.from("study_tasks").update({ status: newStatus }).eq("id", taskId);
+    // 调 API 更新数据库
+    try {
+      const res = await fetch("/api/plan/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, status: newStatus }),
+      });
+      if (!res.ok) {
+        // 失败时回滚
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId ? { ...t, status: currentStatus as PlanTask["status"] } : t
+          )
+        );
+      }
+    } catch {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, status: currentStatus as PlanTask["status"] } : t
+        )
+      );
+    }
   }
 
   async function handleCheckin(e: React.FormEvent) {
@@ -206,6 +238,7 @@ export default function DashboardPage() {
     setSubmitting(true);
 
     const completedCount = tasks.filter((t) => t.status === "completed").length;
+    const totalCount = tasks.length;
 
     try {
       const res = await fetch("/api/checkin/generate", {
@@ -214,34 +247,37 @@ export default function DashboardPage() {
         body: JSON.stringify({
           studyHours,
           tasksCompleted: completedCount,
-          tasksTotal: tasks.length,
+          tasksTotal: totalCount,
           status: checkinStatus,
           difficulties,
+          energyLevel: checkinStatus === "energetic" ? 5 : checkinStatus === "normal" ? 3 : 2,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        console.warn("打卡失败:", data.error);
-      } else {
+
+      if (data.feedback) {
         setFeedback(data.feedback);
       }
 
+      setShowCheckin(false);
       setCheckin({
         id: "",
         study_hours: studyHours,
         tasks_completed: completedCount,
-        tasks_total: tasks.length,
+        tasks_total: totalCount,
         status: checkinStatus,
         difficulties,
         ai_feedback: data.feedback || null,
       });
-    } catch (e) {
-      console.warn("打卡请求失败:", e);
-    }
 
-    setSubmitting(false);
-    setShowCheckin(false);
+      // 刷新连续打卡
+      loadData();
+    } catch (e) {
+      console.warn("[Dashboard] 打卡失败:", e);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleLogout() {
@@ -254,7 +290,7 @@ export default function DashboardPage() {
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const totalCount = tasks.length;
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const currentWeek = plan?.weekly_plan?.[0];
+  const totalWeeks = plan?.weekly_plan?.length ?? 1;
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "早上好" : currentHour < 18 ? "下午好" : "晚上好";
@@ -287,32 +323,24 @@ export default function DashboardPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">
-              {greeting} 👋
+              {greeting}{profile ? `，${profile.major}考研中` : ""}
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {profile?.school ? `目标：${profile.school} · ${profile.major}` : "继续加油"}
-            </p>
+            <p className="mt-0.5 text-sm text-gray-500">{profile?.school}</p>
           </div>
-          {streak > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5">
-              <Flame className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-medium text-orange-600">连续 {streak} 天</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
+            <Flame className="h-4 w-4 text-orange-500" />
+            <span className="text-sm font-medium text-orange-600">连续 {streak} 天</span>
+          </div>
         </div>
 
-        {!plan ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
-            <Sparkles className="mx-auto h-8 w-8 text-blue-500" />
-            <h2 className="mt-4 text-lg font-semibold text-gray-900">AI计划尚未生成</h2>
-            <p className="mt-2 text-sm text-gray-500">
-              请在填写考研信息后，系统会自动生成你的个性化学习计划。
-            </p>
+        {!hasPlan ? (
+          <div className="flex flex-col items-center gap-4 py-12">
+            <p className="text-sm text-gray-500">还没有学习计划</p>
             <Link
               href="/setup"
-              className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-gray-900 px-5 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+              className="rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-medium text-white"
             >
-              填写考研信息
+              去填写考研信息
             </Link>
           </div>
         ) : (
@@ -335,7 +363,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-900">今日进度</span>
+                  <span className="text-sm font-medium text-gray-900">本周进度</span>
                 </div>
                 <span className="text-sm text-gray-500">
                   {completedCount}/{totalCount} 完成
@@ -349,15 +377,43 @@ export default function DashboardPage() {
               </div>
               {totalCount > 0 && (
                 <p className="mt-2 text-xs text-gray-400">
-                  {progress === 100 ? "今日任务全部完成！" : `已完成 ${progress}%`}
+                  {progress === 100 ? "本周任务全部完成！" : `已完成 ${progress}%`}
                 </p>
               )}
-              {totalCount === 0 && <p className="mt-2 text-xs text-gray-400">暂无今日任务</p>}
+              {totalCount === 0 && <p className="mt-2 text-xs text-gray-400">暂无本周任务</p>}
             </section>
 
-            {/* 今日任务 */}
+            {/* 周导航 */}
+            <section className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-medium text-gray-900">
+                第 {currentWeek} 周 / 共 {totalWeeks} 周
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const prev = Math.max(1, currentWeek - 1);
+                    loadTasks(prev);
+                  }}
+                  disabled={currentWeek <= 1}
+                  className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-600 disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    const next = Math.min(totalWeeks, currentWeek + 1);
+                    loadTasks(next);
+                  }}
+                  disabled={currentWeek >= totalWeeks}
+                  className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-600 disabled:opacity-30"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </section>
+
+            {/* 本周任务 */}
             <section className="mb-6">
-              <h2 className="mb-3 text-sm font-medium text-gray-900">今日任务</h2>
               <div className="space-y-2">
                 {tasks.map((task) => (
                   <button
@@ -375,168 +431,166 @@ export default function DashboardPage() {
                       <Circle className="h-5 w-5 shrink-0 text-gray-300 transition-all duration-200 hover:text-gray-400" />
                     )}
                     <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${getSubjectColor(task.subject)}`}>
+                          {task.subject}
+                        </span>
+                        {task.priority === "high" && (
+                          <span className="text-[11px] font-medium text-red-500">重要</span>
+                        )}
+                      </div>
                       <p
-                        className={`text-sm transition-all duration-200 ${
-                          task.status === "completed"
-                            ? "text-gray-400 line-through"
-                            : "text-gray-900"
+                        className={`mt-1 text-sm transition-all duration-200 ${
+                          task.status === "completed" ? "line-through text-gray-400" : "text-gray-900"
                         }`}
                       >
-                        {task.task}
+                        {task.content}
                       </p>
-                      <span className="mt-0.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                        {task.subject}
-                      </span>
+                      <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-400">
+                        <span>预计 {task.planned_hours}h</span>
+                        <span>
+                          {"●".repeat(task.difficulty)}
+                          {"○".repeat(5 - task.difficulty)}
+                        </span>
+                        <span className="text-gray-300">{task.difficulty === 5 ? "难" : task.difficulty >= 3 ? "中" : "易"}</span>
+                      </div>
                     </div>
                   </button>
                 ))}
-                {tasks.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
-                    暂无今日任务
-                  </div>
-                )}
               </div>
             </section>
 
-            {/* 每日打卡 */}
+            {/* 打卡入口 */}
             <section className="mb-6">
-              {checkin ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium text-gray-900">今日已打卡</span>
-                  </div>
-                  <div className="mt-2 flex gap-4 text-xs text-gray-500">
-                    <span>学习 {checkin.study_hours}h</span>
-                    <span>完成 {checkin.tasks_completed}/{checkin.tasks_total} 任务</span>
-                  </div>
-                </div>
-              ) : showCheckin ? (
-                <form onSubmit={handleCheckin} className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
-                  <h3 className="text-sm font-medium text-gray-900">今日打卡</h3>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">今天学习了多久？</label>
-                    <div className="mt-1.5 flex items-center gap-3">
-                      <input
-                        type="range"
-                        min={0}
-                        max={16}
-                        step={0.5}
-                        value={studyHours}
-                        onChange={(e) => setStudyHours(Number(e.target.value))}
-                        className="flex-1 accent-gray-900"
-                      />
-                      <span className="w-12 text-sm font-medium text-gray-900">{studyHours}h</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">今天的学习状态</label>
-                    <div className="mt-1.5 flex gap-2">
-                      {statusOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setCheckinStatus(opt.value)}
-                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
-                            checkinStatus === opt.value
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-200 text-gray-600 hover:border-gray-300"
-                          }`}
-                        >
-                          <opt.icon className="h-4 w-4" />
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">今天遇到了什么困难？</label>
-                    <input
-                      type="text"
-                      value={difficulties}
-                      onChange={(e) => setDifficulties(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
-                      placeholder="例如：数学做题速度慢"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowCheckin(false)}
-                      className="flex-1 rounded-lg border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 rounded-lg bg-gray-900 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                    >
-                      {submitting ? "分析中..." : "提交打卡"}
-                    </button>
-                  </div>
-                </form>
+              {!checkin ? (
+                <button
+                  onClick={() => setShowCheckin(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3.5 text-sm font-medium text-gray-600 transition-all hover:border-gray-400 hover:text-gray-800"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  完成打卡，获取AI反馈
+                </button>
               ) : (
                 <button
                   onClick={() => setShowCheckin(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-3.5 text-sm font-medium text-green-700 transition-all hover:bg-green-100"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  记录今天的学习情况，获取AI反馈
+                  <CheckCircle2 className="h-4 w-4" />
+                  已打卡 · 再记录一次
                 </button>
               )}
             </section>
 
-            {/* 本周计划 */}
-            {currentWeek && (
-              <section className="mb-6">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-medium text-gray-900">
-                    本周计划 · 第 {currentWeek.week} 周
-                  </h2>
-                  <span className="text-xs text-gray-400">{currentWeek.period}</span>
-                </div>
-                <div className="space-y-2">
-                  {currentWeek.tasks.map((task, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3.5">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-50 text-xs font-medium text-blue-600">
-                        {task.hours}h
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-900">{task.content}</p>
-                        <span className="mt-0.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                          {task.subject}
-                        </span>
+            {/* 打卡弹窗 */}
+            {showCheckin && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30">
+                <div className="w-full max-w-lg animate-fadeIn rounded-t-2xl bg-white px-6 pb-10 pt-6 shadow-2xl">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-gray-900">记录今日学习</h3>
+                    <button
+                      onClick={() => setShowCheckin(false)}
+                      className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCheckin} className="space-y-5">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">今天学习了多久？</label>
+                      <div className="mt-1.5 flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={0}
+                          max={16}
+                          step={0.5}
+                          value={studyHours}
+                          onChange={(e) => setStudyHours(Number(e.target.value))}
+                          className="flex-1 accent-gray-900"
+                        />
+                        <span className="w-12 text-sm font-medium text-gray-900">{studyHours}h</span>
                       </div>
                     </div>
-                  ))}
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">今天的学习状态</label>
+                      <div className="mt-1.5 flex gap-2">
+                        {statusOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setCheckinStatus(opt.value)}
+                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
+                              checkinStatus === opt.value
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-200 text-gray-600 hover:border-gray-300"
+                            }`}
+                          >
+                            <opt.icon className="h-4 w-4" />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">遇到的困难（选填）</label>
+                      <textarea
+                        value={difficulties}
+                        onChange={(e) => setDifficulties(e.target.value)}
+                        placeholder="今天学习遇到什么困难？"
+                        rows={2}
+                        className="mt-1.5 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">已完成任务</span>
+                        <span className="font-medium text-gray-900">{completedCount}/{totalCount}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          AI分析中...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          提交并获取AI反馈
+                        </>
+                      )}
+                    </button>
+                  </form>
                 </div>
-              </section>
+              </div>
             )}
 
-            {/* 阶段目标 */}
-            {plan.stages && plan.stages.length > 0 && (
-              <section>
-                <h2 className="mb-3 text-sm font-medium text-gray-900">阶段目标</h2>
+            {/* 阶段计划 */}
+            {plan?.stages && plan.stages.length > 0 && (
+              <section className="mb-6">
+                <h2 className="mb-3 text-sm font-medium text-gray-900">备考阶段</h2>
                 <div className="space-y-3">
-                  {plan.stages.map((stage, i) => (
-                    <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
-                              {i + 1}
-                            </span>
-                            <h3 className="text-sm font-semibold text-gray-900">{stage.name}</h3>
-                          </div>
-                          <p className="mt-2 text-sm leading-relaxed text-gray-600">{stage.goal}</p>
-                          <p className="mt-1 text-xs text-gray-400">{stage.focus}</p>
+                  {plan.stages.map((stage, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[11px] font-medium text-white">
+                          {idx + 1}
                         </div>
+                        <h3 className="text-sm font-semibold text-gray-900">{stage.name}</h3>
                       </div>
+                      <p className="mt-2 text-sm leading-relaxed text-gray-600">{stage.goal}</p>
+                      <p className="mt-1 text-xs text-gray-400">{stage.focus}</p>
                     </div>
                   ))}
                 </div>
