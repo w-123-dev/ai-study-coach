@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildMemorySummary } from "@/lib/memory/memory-manager";
 import type { DailySnapshot, SessionSummary } from "@/lib/types";
+import { getCoachConfig, buildCoachModePrompt } from "@/lib/memory/coach-personality";
 
 /**
  * 构建完整的 AI 对话上下文
@@ -30,7 +31,12 @@ export async function buildFullContext(
     parts.push(lastSessionContext);
   }
 
-  if (parts.length === 0) return "";
+
+  // 4. ????
+  const coachConfig = await getCoachConfig(supabase, userId);
+  const coachPrompt = buildCoachModePrompt(coachConfig);
+
+  if (parts.length === 0) return coachPrompt;
 
   return (
     "\n\n===== 以下是 AI 对你历史情况的了解，请基于此回答问题 =====\n" +

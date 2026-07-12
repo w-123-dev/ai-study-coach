@@ -3,6 +3,7 @@ import { withAuth, getStudentProfile } from "@/lib/api-utils";
 import { callDeepSeek } from "@/lib/deepseek";
 import { buildPlanPrompt } from "@/lib/prompts";
 import { decomposePlan, insertPlanTasks } from "@/lib/plan/plan-task-service";
+import { initializeProfileMemories, updatePlanProgressMemory } from "@/lib/memory/profile-initializer";
 import type { StudyPlan } from "@/lib/types";
 
 export const POST = withAuth(async (request, { user, supabase }) => {

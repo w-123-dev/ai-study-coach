@@ -67,6 +67,31 @@ export type CoachMode =
   | "analytic"     // 数据分析型
   | "sprint";      // 冲刺强化型
 
+/** 教练模式中文标签 */
+export const COACH_MODE_LABELS: Record<CoachMode, string> = {
+  strict: "严格监督型",
+  gentle: "温和陪伴型",
+  analytic: "数据分析型",
+  sprint: "冲刺强化型",
+};
+
+/** 教练模式描述（用于 AI Prompt） */
+export const COACH_MODE_DESCRIPTIONS: Record<CoachMode, string> = {
+  strict: "你是严格监督型教练。要求严格，目标明确，督促用户完成任务。",
+  gentle: "你是温和陪伴型教练。鼓励为主，理解用户情绪，缓慢推进。",
+  analytic: "你是数据分析型教练。用数据说话，分析学习效率，给出最优策略。",
+  sprint: "你是冲刺强化型教练。高强度训练，极限提分，争分夺秒。",
+};
+
+/** 教练配置 */
+export interface CoachConfig {
+  mode: CoachMode;
+  autoAdjusted: boolean;
+  lastAdjustReason: string;
+  updatedAt: string;
+}
+
+
 /** 情绪状态 */
 export type Emotion = "happy" | "normal" | "anxious" | "tired";
 
@@ -135,6 +160,31 @@ export interface UserMemory {
   last_reinforced_at: string;
   expires_at: string | null;
   created_at: string;
+}
+
+
+/** 记忆提取结果 */
+export interface MemoryExtraction {
+  memories: {
+    category: MemoryCategory;
+    content: string;
+    confidence: number;
+  }[];
+  stateChange: {
+    detected: boolean;
+    description: string;
+  };
+}
+
+/** 用户画像摘要（给 AI 使用） */
+export interface UserProfileSummary {
+  target: string;
+  level: string;
+  weakSubjects: string[];
+  habits: string[];
+  personality: string[];
+  recentMood: string;
+  streak: number;
 }
 
 /** 提醒/通知 */

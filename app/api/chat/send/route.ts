@@ -9,6 +9,7 @@ import {
   shouldGenerateSummary,
   generateSessionSummary,
 } from "@/lib/memory/session-manager";
+import { extractMemoriesFromChat } from "@/lib/memory/chat-extractor";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const body = await safeParseJSON<{ message?: string }>(request, {});
