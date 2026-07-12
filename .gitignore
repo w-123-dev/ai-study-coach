@@ -42,3 +42,5 @@ next-env.d.ts
 
 .vercel
 .env*
+scripts/seed-local.mjs  
+scripts/ 
