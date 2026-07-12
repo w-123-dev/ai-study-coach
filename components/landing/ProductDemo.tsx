@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Brain,
   BarChart3,
@@ -50,13 +48,13 @@ const capabilities = [
 
 export default function ProductDemo() {
   return (
-    <section className="border-t border-gray-100 bg-gray-50/50 px-5 py-20 md:py-28">
+    <section className="bg-[#0F172A] px-5 py-20 md:py-28">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
+          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
             AI 教练的核心能力
           </h2>
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-white/40">
             不是简单的聊天机器人，是你专属的备考陪练
           </p>
         </div>
@@ -65,20 +63,20 @@ export default function ProductDemo() {
           {capabilities.map((cap) => (
             <div
               key={cap.title}
-              className="group rounded-xl border border-gray-200 bg-white p-6 transition-all hover:border-gray-300 hover:shadow-sm"
+              className="group rounded-xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-white/20 hover:bg-white/[0.06]"
             >
               <div className="flex items-start justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-                  <cap.icon className="h-5 w-5 text-blue-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                  <cap.icon className="h-5 w-5 text-blue-400" />
                 </div>
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/30">
                   {cap.badge}
                 </span>
               </div>
-              <h3 className="mt-4 text-[15px] font-semibold text-gray-900">
+              <h3 className="mt-4 text-[15px] font-semibold text-white">
                 {cap.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-500">
+              <p className="mt-2 text-sm leading-relaxed text-white/50">
                 {cap.description}
               </p>
             </div>

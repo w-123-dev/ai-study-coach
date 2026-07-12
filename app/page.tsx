@@ -49,26 +49,26 @@ export default function HomePage() {
       </main>
 
       {/* 页脚 */}
-      <footer className="border-t border-gray-100 px-5 py-10">
+      <footer className="border-t border-white/10 bg-[#0F172A] px-5 py-10">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-blue-500" />
-            <span className="text-xs font-semibold text-gray-700">
+            <BookOpen className="h-4 w-4 text-blue-400" />
+            <span className="text-xs font-semibold text-white/60">
               AI考研私人教练
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-gray-400">
-            <Link href="/" className="hover:text-gray-600">
+          <div className="flex items-center gap-4 text-xs text-white/30">
+            <Link href="/" className="hover:text-white/60">
               首页
             </Link>
-            <Link href="/login" className="hover:text-gray-600">
+            <Link href="/login" className="hover:text-white/60">
               登录
             </Link>
-            <Link href="/signup" className="hover:text-gray-600">
+            <Link href="/signup" className="hover:text-white/60">
               注册
             </Link>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-white/30">
             &copy; {new Date().getFullYear()} AI考研私人教练
           </p>
         </div>

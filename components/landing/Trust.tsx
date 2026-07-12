@@ -25,7 +25,7 @@ const badges = [
 
 export default function Trust() {
   return (
-    <section className="border-t border-gray-100 bg-[#0F172A] px-5 py-16 md:py-20">
+    <section className="border-t border-white/10 bg-[#0F172A] px-5 py-16 md:py-20">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <h2 className="text-lg font-semibold text-white/80">

@@ -1,4 +1,4 @@
-import { X, Check, Minus } from "lucide-react";
+import { X, Check } from "lucide-react";
 
 const comparisons = [
   {
@@ -50,13 +50,13 @@ const rows = [
 
 export default function PainPoints() {
   return (
-    <section className="border-t border-gray-100 bg-white px-5 py-20 md:py-28">
+    <section className="bg-[#0F172A] px-5 py-20 md:py-28">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
+          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
             为什么需要一个专属 AI 教练？
           </h2>
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-white/40">
             看看不同备考方式的差距
           </p>
         </div>
@@ -65,26 +65,24 @@ export default function PainPoints() {
           <table className="w-full min-w-[640px]">
             <thead>
               <tr>
-                <th className="w-[28%] pb-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <th className="w-[28%] pb-4 text-left text-xs font-semibold uppercase tracking-wider text-white/30">
                   能力
                 </th>
                 {comparisons.map((c) => (
                   <th
                     key={c.name}
-                    className={`pb-4 text-center text-sm font-semibold ${
-                      c.highlight ? "text-blue-600" : "text-gray-700"
-                    }`}
+                    className="pb-4 text-center"
                   >
                     <div
-                      className={`mx-auto inline-block rounded-lg px-3 py-1.5 ${
+                      className={`mx-auto inline-block rounded-lg px-3 py-1.5 text-sm font-semibold ${
                         c.highlight
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-700"
+                          ? "bg-blue-500/10 text-blue-400"
+                          : "text-white/60"
                       }`}
                     >
                       {c.name}
                     </div>
-                    <div className="mt-1 text-[11px] font-normal text-gray-400">
+                    <div className="mt-1 text-[11px] font-normal text-white/30">
                       {c.description}
                     </div>
                   </th>
@@ -93,8 +91,8 @@ export default function PainPoints() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.key} className="border-t border-gray-100">
-                  <td className="py-4 text-sm font-medium text-gray-700">
+                <tr key={row.key} className="border-t border-white/5">
+                  <td className="py-4 text-sm font-medium text-white/60">
                     {row.label}
                   </td>
                   {comparisons.map((c) => {
@@ -102,11 +100,9 @@ export default function PainPoints() {
                     return (
                       <td key={c.name} className="py-4 text-center">
                         {val === true ? (
-                          <Check className="mx-auto h-5 w-5 text-emerald-500" />
-                        ) : val === false ? (
-                          <X className="mx-auto h-5 w-5 text-gray-300" />
+                          <Check className="mx-auto h-5 w-5 text-emerald-400" />
                         ) : (
-                          <Minus className="mx-auto h-5 w-5 text-gray-300" />
+                          <X className="mx-auto h-5 w-5 text-white/20" />
                         )}
                       </td>
                     );
