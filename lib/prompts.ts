@@ -1,4 +1,4 @@
-﻿import type { StudentProfile } from "./types";
+import type { StudentProfile } from "./types";
 
 const levelLabels: Record<string, string> = {
   beginner: "零基础",
@@ -7,7 +7,10 @@ const levelLabels: Record<string, string> = {
   advanced: "基础扎实",
 };
 
-export function buildPlanPrompt(profile: StudentProfile): string {
+export function buildPlanPrompt(
+  profile: StudentProfile,
+  schoolContext?: string
+): string {
   const today = new Date();
   const examDate = new Date(profile.exam_year, 11, 21);
   const remainingDays = Math.ceil(
@@ -21,6 +24,10 @@ export function buildPlanPrompt(profile: StudentProfile): string {
       ? profile.weak_subjects.join("、")
       : "无特别薄弱科目";
 
+  const schoolSection = schoolContext
+    ? `\n\n===== 该院校参考数据 =====\n${schoolContext}\n===== 以上数据来自往届公开信息，实际请以当年招生简章为准 =====\n`
+    : "";
+
   return `你是一名经验丰富的考研规划师。请根据以下学生信息生成一份个性化的考研学习计划。
 学生信息：
 - 目标学校：${profile.school}
@@ -30,7 +37,7 @@ export function buildPlanPrompt(profile: StudentProfile): string {
 - 薄弱科目：${weakText}
 - 每天可学习时间：${profile.daily_hours}小时
 - 距离考研：约${remainingDays}天
-规则：
+${schoolSection}规则：
 1. 不保证上岸，不制造焦虑，不提供虚假学校信息
 2. 以真诚、务实、鼓励的语气
 3. 考虑科目难度和用户基础，优先安排薄弱科目

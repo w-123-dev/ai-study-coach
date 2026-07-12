@@ -137,7 +137,7 @@ export default function SetupPage() {
 
     // plan generation moved to plan-success page
 
-    router.push("/plan-success");
+    router.push("/profile-check");
     router.refresh();
   }
 

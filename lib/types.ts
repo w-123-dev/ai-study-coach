@@ -350,3 +350,36 @@ export interface AIReviewResult {
   problems_found: string[];
   suggestions: AdjustmentSuggestion[];
 }
+
+// ===== 考研院校信息库 =====
+
+/** 学校层次 */
+export type SchoolTier = "985" | "211" | "双一流" | "普通" | "其他";
+
+/** 院校专业信息 */
+export interface SchoolProfile {
+  id: string;
+  school: string;
+  major: string;
+  exam_year: number | null;
+  exam_subjects: string[];
+  exam_subject_codes: string[];
+  cutoff_score: number | null;
+  avg_admission_score: number | null;
+  competition_ratio: string | null;
+  enrollment_quota: number | null;
+  school_tier: SchoolTier | null;
+  major_ranking: string | null;
+  notes: string | null;
+  verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 检索结果 */
+export interface ResearchResult {
+  school: SchoolProfile | null;
+  similar_majors: SchoolProfile[];
+  cached: boolean;
+  searched_at: string;
+}
