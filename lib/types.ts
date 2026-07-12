@@ -1,4 +1,4 @@
-// ===== 原始 V1 类型（保持不变） =====
+﻿// ===== 原始 V1 类型（保持不变） =====
 
 export interface StudentProfile {
   id: string;
@@ -236,4 +236,62 @@ export interface PlanTask {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ===== 学生状态分析系统 =====
+
+/** 学习动力 */
+export type Motivation = "high" | "medium" | "low";
+
+/** 完成趋势 */
+export type CompletionTrend = "rising" | "stable" | "declining";
+
+/** 风险等级 */
+export type RiskLevel = "low" | "medium" | "high";
+
+/** 压力状态 */
+export type StressLevel = "low" | "normal" | "high";
+
+/** 学生当前状态 */
+export interface StudentState {
+  id?: string;
+  user_id: string;
+  motivation: Motivation;
+  completion_trend: CompletionTrend;
+  risk_level: RiskLevel;
+  stress_level: StressLevel;
+  weak_subjects: string[];
+  avg_daily_hours: number;
+  avg_completion_rate: number;
+  streak_days: number;
+  delay_count: number;
+  total_tasks: number;
+  completed_tasks: number;
+  risk_reasons: string[];
+  suggestions: string[];
+  analyzed_at: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** 状态分析输入（供分析引擎使用） */
+export interface StateAnalysisInput {
+  recentSnapshots: DailySnapshot[];
+  recentTasks: {
+    subject: string;
+    status: string;
+    delay_count: number;
+    planned_hours: number;
+    actual_hours: number;
+  }[];
+  memories: {
+    category: string;
+    content: string;
+    confidence: number;
+  }[];
+  profile: {
+    weak_subjects: string[];
+    daily_hours: number;
+    level: string;
+  };
 }

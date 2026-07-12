@@ -1,7 +1,9 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildMemorySummary } from "@/lib/memory/memory-manager";
 import type { DailySnapshot, SessionSummary } from "@/lib/types";
 import { getCoachConfig, buildCoachModePrompt } from "@/lib/memory/coach-personality";
+import { getLatestStudentState } from "@/lib/analysis/student-state";
+import type { StudentState } from "@/lib/types";
 
 /**
  * 构建完整的 AI 对话上下文
@@ -19,7 +21,13 @@ export async function buildFullContext(
     parts.push("【我对你的了解】\n" + memorySummary);
   }
 
-  // 2. 近期学习快照（近 7 天）
+  // 2. 学生状态分析
+  const studentState = await getLatestStudentState(supabase, userId);
+  if (studentState) {
+    parts.push(buildStateContext(studentState));
+  }
+
+  // 3. 近期学习快照（近 7 天）
   const snapshotContext = await buildSnapshotContext(supabase, userId);
   if (snapshotContext) {
     parts.push(snapshotContext);
@@ -48,7 +56,35 @@ export async function buildFullContext(
 /**
  * 构建近期快照上下文（近 7 天）
  */
-export async function buildSnapshotContext(
+export function buildStateContext(state: StudentState): string {
+  const labelMap: Record<string, string> = {
+    high: "高",
+    medium: "中",
+    low: "低",
+    rising: "上升",
+    stable: "稳定",
+    declining: "下降",
+    normal: "正常",
+  };
+
+  return [
+    "【当前学生状态】",
+    "学习动力：" + (labelMap[state.motivation] ?? state.motivation),
+    "完成趋势：" + (labelMap[state.completion_trend] ?? state.completion_trend),
+    "风险等级：" + (labelMap[state.risk_level] ?? state.risk_level),
+    "压力状态：" + (labelMap[state.stress_level] ?? state.stress_level),
+    "连续学习：" + state.streak_days + " 天",
+    "近7日平均完成率：" + state.avg_completion_rate + "%",
+    "近7日平均学习时间：" + state.avg_daily_hours + " 小时",
+    state.weak_subjects.length > 0 ? "薄弱科目：" + state.weak_subjects.join("、") : "",
+    state.risk_reasons.length > 0 ? "风险因素：" + state.risk_reasons.join("；") : "",
+    state.suggestions.length > 0 ? "建议：" + state.suggestions.join("；") : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function buildSnapshotContext(
   supabase: SupabaseClient,
   userId: string,
   days: number = 7
@@ -171,3 +207,5 @@ export async function buildStatusSummary(
 
   return parts.join("\n\n");
 }
+
+

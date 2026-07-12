@@ -1,10 +1,11 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { withAuth, getStudentProfile, safeParseJSON, requireFields } from "@/lib/api-utils";
 import { callDeepSeek } from "@/lib/deepseek";
 import { buildCheckinPrompt } from "@/lib/prompts";
 import { createOrUpdateSnapshot } from "@/lib/profile/snapshot-service";
 import { buildStatusSummary } from "@/lib/memory/context-builder";
 import { updateTaskStatus } from "@/lib/plan/plan-task-service";
+import { analyzeAndSaveState } from "@/lib/analysis/student-state";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const body = await safeParseJSON<{
@@ -114,5 +115,11 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     memo: body.memo,
   }).catch((e) => console.error("[Checkin] 创建快照失败:", e));
 
+  // 自动触发状态分析
+  analyzeAndSaveState(supabase, user.id).catch((e) =>
+    console.error("[Checkin] 状态分析失败:", e)
+  );
+
   return { feedback };
 });
+
