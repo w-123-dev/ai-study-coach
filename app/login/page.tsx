@@ -4,20 +4,23 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Loader2, Mail } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const urlError = searchParams.get("error") || "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(urlError);
   const [loading, setLoading] = useState(false);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setUnconfirmedEmail("");
     setLoading(true);
 
     const supabase = createClient();
@@ -27,17 +30,47 @@ function LoginForm() {
     });
 
     if (error) {
-      setError(
-        error.message === "Invalid login credentials"
-          ? "邮箱或密码错误"
-          : error.message
-      );
+      if (error.message === "Invalid login credentials") {
+        setError("邮箱或密码错误");
+      } else if (error.message.includes("Email not confirmed")) {
+        setUnconfirmedEmail(email);
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
       return;
     }
 
     router.push(redirect);
     router.refresh();
+  }
+
+  if (unconfirmedEmail) {
+    return (
+      <div className="mt-8 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+          <Mail className="h-6 w-6 text-blue-600" />
+        </div>
+        <h2 className="mt-4 text-base font-semibold text-gray-900">邮箱尚未验证</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          请先验证 {unconfirmedEmail} 后再登录。
+        </p>
+        <Link
+          href="/verify-email"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          去验证邮箱
+        </Link>
+        <div className="mt-4">
+          <button
+            onClick={() => setUnconfirmedEmail("")}
+            className="text-sm text-gray-400 hover:text-gray-600"
+          >
+            使用其他账号登录
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -87,8 +120,9 @@ function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
       >
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         {loading ? "登录中..." : "登录"}
       </button>
     </form>
