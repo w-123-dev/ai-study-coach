@@ -6,6 +6,9 @@ import { createOrUpdateSnapshot } from "@/lib/profile/snapshot-service";
 import { buildStatusSummary } from "@/lib/memory/context-builder";
 import { updateTaskStatus } from "@/lib/plan/plan-task-service";
 import { analyzeAndSaveState } from "@/lib/analysis/student-state";
+import { runWeeklyReview } from "@/lib/plan/plan-review";
+import { getWeekReview } from "@/lib/plan/plan-review";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const body = await safeParseJSON<{
@@ -120,6 +123,35 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     console.error("[Checkin] 状态分析失败:", e)
   );
 
+  // 每周自动复盘（每 7 天触发一次）
+  triggerWeeklyReview(supabase, user.id).catch((e) =>
+    console.error("[Checkin] 周复盘失败:", e)
+  );
+
   return { feedback };
 });
+
+
+
+/**
+ * 触发周复盘（每天最多一次）
+ */
+async function triggerWeeklyReview(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<void> {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const startOfYear = new Date(currentYear, 0, 1);
+  const diff = now.getTime() - startOfYear.getTime();
+  const currentWeek = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000));
+
+  // 检查本周是否已有复盘
+  const existing = await getWeekReview(supabase, userId, currentWeek);
+  if (existing) return; // 本周已复盘过，跳过
+
+  // 有任务数据时才触发
+  await runWeeklyReview(supabase, userId, currentWeek, false);
+}
+
 

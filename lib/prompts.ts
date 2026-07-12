@@ -1,4 +1,4 @@
-import type { StudentProfile } from "./types";
+﻿import type { StudentProfile } from "./types";
 
 const levelLabels: Record<string, string> = {
   beginner: "零基础",
@@ -155,4 +155,68 @@ export function buildChatSystemPrompt(
 7. 如果你需要了解学生的进度，可以询问
 8. 建议要具体、可执行，不要空泛
 记住：你不仅是聊天机器人，你是学生的考研教练。${contextSection}`;
+}
+
+/**
+ * 构建每周复盘 Prompt
+ */
+export function buildReviewPrompt(params: {
+  weekNumber: number;
+  completionRate: number;
+  totalTasks: number;
+  completedTasks: number;
+  delayedTasks: number;
+  avgDailyHours: number;
+  subjectBreakdown: string;
+  studentState: string;
+  originalPlanTasks: string;
+}): string {
+  return `你是一个考研教练的复盘分析系统。请分析学生过去一周的学习情况，给出调整建议。
+
+## 本周数据（第 ${params.weekNumber} 周）
+
+完成率：${params.completionRate}%
+总任务数：${params.totalTasks}
+已完成：${params.completedTasks}
+延期：${params.delayedTasks}
+日均学习：${params.avgDailyHours} 小时
+
+### 各科目情况
+${params.subjectBreakdown}
+
+### 当前学生状态
+${params.studentState}
+
+### 原始计划任务
+${params.originalPlanTasks}
+
+## 分析要求
+
+1. 分析哪些科目完成得好，哪些存在问题
+2. 识别导致延期的原因（任务量过大？难度过高？时间安排不合理？）
+3. 结合学生当前状态，判断是否需要调整强度
+4. 给出具体调整建议
+
+## 调整建议规则
+
+- type: "add" — 新增任务
+- type: "remove" — 删除不合理的任务
+- type: "modify" — 修改任务难度/时间
+- type: "reschedule" — 调整任务到其他周
+
+## 输出格式（纯 JSON，不要 markdown）
+{
+  "analysis_summary": "对本周围绕完成情况的一句话总结",
+  "problems_found": ["问题1", "问题2"],
+  "suggestions": [
+    {
+      "type": "modify",
+      "subject": "数学",
+      "original": "高数第三章（原计划3小时）",
+      "suggestion": "改为高数第三章基础部分（2小时）",
+      "reason": "上周高数完成率仅40%，可能难度过高",
+      "priority": "high"
+    }
+  ]
+}`;
 }

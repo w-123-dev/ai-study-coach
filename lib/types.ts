@@ -295,3 +295,58 @@ export interface StateAnalysisInput {
     level: string;
   };
 }
+
+// ===== 动态计划调整系统 =====
+
+/** 复盘验证状态 */
+export type ReviewStatus = "pending" | "approved" | "rejected" | "applied";
+
+/** 科目完成情况 */
+export interface SubjectBreakdown {
+  subject: string;
+  total: number;
+  completed: number;
+  completionRate: number;
+  avgHours: number;
+}
+
+/** AI 调整建议 */
+export interface AdjustmentSuggestion {
+  type: "add" | "remove" | "modify" | "reschedule";
+  subject: string;
+  original?: string;
+  suggestion: string;
+  reason: string;
+  priority: "high" | "medium" | "low";
+}
+
+/** 每周复盘 */
+export interface PlanReview {
+  id?: string;
+  user_id: string;
+  week_number: number;
+  period_start: string;
+  period_end: string;
+  completion_rate: number;
+  total_tasks: number;
+  completed_tasks: number;
+  delayed_tasks: number;
+  avg_daily_hours: number;
+  subject_breakdown: Record<string, SubjectBreakdown>;
+  analysis_summary: string;
+  problems_found: string[];
+  adjustment_suggestions: AdjustmentSuggestion[];
+  validation_status: ReviewStatus;
+  validation_notes?: string;
+  new_version?: number;
+  applied_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** AI 复盘返回格式 */
+export interface AIReviewResult {
+  analysis_summary: string;
+  problems_found: string[];
+  suggestions: AdjustmentSuggestion[];
+}
