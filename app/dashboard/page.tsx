@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import {
   Flame,
   Clock,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   MessageCircle,
   Zap,
@@ -113,6 +114,19 @@ export default function DashboardPage() {
   const [todayStr, setTodayStr] = useState("");
   const [streak, setStreak] = useState(0);
   const [daysUntilExam, setDaysUntilExam] = useState(0);
+
+  // 任务折叠状态：首次进入默认折叠
+  const [taskCollapsed, setTaskCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const visited = sessionStorage.getItem('dashboard_visited');
+      if (!visited) {
+        sessionStorage.setItem('dashboard_visited', 'true');
+        return true;
+      }
+      return false;
+    }
+    return false;
+  });
 
   // 打卡状态
   const [checkin, setCheckin] = useState<TodayCheckin | null>(null);
@@ -591,7 +605,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             )}
-            {tasks.map((task) => (
+            {(taskCollapsed ? tasks.slice(0, 3) : tasks).map((task) => (
               <button
                 key={task.id}
                 onClick={() => toggleTask(task.id, task.status)}
@@ -634,6 +648,17 @@ export default function DashboardPage() {
                 </div>
               </button>
             ))}
+            {/* 折叠展开按钮 */}
+            {tasks.length > 3 && (
+              <button
+                onClick={() => setTaskCollapsed(!taskCollapsed)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-200 bg-white px-4 py-2.5 text-xs text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${taskCollapsed ? "" : "rotate-180"}`} />
+                {taskCollapsed ? `展开全部 (共${tasks.length}个任务)` : "收起"}
+              </button>
+            )}
+
           </div>
         </section>
 
