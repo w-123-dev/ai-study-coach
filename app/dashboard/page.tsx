@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib/types";
 import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
+import PartnerCard from "@/components/partner/PartnerCard";
+
 
 interface TodayCheckin {
   id: string;
@@ -114,6 +116,7 @@ export default function DashboardPage() {
   const [todayStr, setTodayStr] = useState("");
   const [streak, setStreak] = useState(0);
   const [daysUntilExam, setDaysUntilExam] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // 任务折叠状态：首次进入默认折叠
   const [taskCollapsed, setTaskCollapsed] = useState(() => {
@@ -236,6 +239,7 @@ export default function DashboardPage() {
       router.push("/login");
       return;
     }
+    setUserId(user.id);
 
     const { data: profileData } = await supabase
       .from("student_profiles")
@@ -529,6 +533,14 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </section>
+        )}
+
+
+        {/* ========== 伙伴模块 ========== */}
+        {userId && (
+          <section className="mb-5">
+            <PartnerCard userId={userId} />
           </section>
         )}
 
