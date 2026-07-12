@@ -12,7 +12,7 @@ import { SEED_SCHOOL_PROFILES } from "@/lib/research/seed-data";
 // 使用 service_role 创建管理端客户端
 const serviceSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   {
     auth: {
       autoRefreshToken: false,
@@ -22,18 +22,32 @@ const serviceSupabase = createClient(
 );
 
 export async function POST(_request: NextRequest) {
+  // 先检查 key 是否为空
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "SUPABASE_SERVICE_ROLE_KEY 未设置" },
+      { status: 500 }
+    );
+  }
+
   try {
     let inserted = 0;
     let skipped = 0;
+    const errors: string[] = [];
 
     for (const record of SEED_SCHOOL_PROFILES) {
       // 检查是否已存在
-      const { data: existing } = await serviceSupabase
+      const { data: existing, error: checkError } = await serviceSupabase
         .from("school_profiles")
         .select("id")
         .eq("school", record.school)
         .eq("major", record.major)
         .maybeSingle();
+
+      if (checkError) {
+        errors.push(`查询失败 ${record.school} ${record.major}: ${checkError.message}`);
+        continue;
+      }
 
       if (existing) {
         skipped++;
@@ -59,15 +73,17 @@ export async function POST(_request: NextRequest) {
 
       if (error) {
         console.error(`[Seed] 插入失败 ${record.school} ${record.major}:`, error.message);
+        errors.push(`${record.school} ${record.major}: ${error.message}`);
       } else {
         inserted++;
       }
     }
 
     return NextResponse.json({
-      message: `写入完成，新增 ${inserted} 条，跳过 ${skipped} 条（已存在）`,
+      message: `写入完成，新增${inserted}条，跳过${skipped}条（已存在）`,
       inserted,
       skipped,
+      errors: errors.slice(0, 10),
       total: SEED_SCHOOL_PROFILES.length,
     });
   } catch (err) {
