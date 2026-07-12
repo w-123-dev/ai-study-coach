@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -135,15 +135,7 @@ export default function SetupPage() {
       }
     }
 
-    // 生成学习计划
-    setGenerating(true);
-    for (let retry = 0; retry < 5; retry++) {
-      try {
-        const res = await fetch("/api/plan/generate", { method: "POST" });
-        if (res.ok) break;
-      } catch {}
-      await new Promise((r) => setTimeout(r, 1000));
-    }
+    // plan generation moved to plan-success page
 
     router.push("/plan-success");
     router.refresh();
