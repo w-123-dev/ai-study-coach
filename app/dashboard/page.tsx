@@ -28,6 +28,7 @@ import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib
 import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
 import PartnerCard from "@/components/partner/PartnerCard";
 import StudySpace from "@/components/partner/StudySpace";
+import PartnerLogs from "@/components/partner/PartnerLogs";
 import type { PartnerSpace } from "@/lib/partner/space";
 
 
@@ -557,6 +558,13 @@ export default function DashboardPage() {
         )}
 
         {/* ========== 学习空间 ========== */}
+
+        {/* ========== 伙伴观察日志 ========== */}
+        {userId && (
+          <section className="mb-5">
+            <PartnerLogs />
+          </section>
+        )}
         {userId && (
           <section className="mb-5">
             <StudySpace space={space} />

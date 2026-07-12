@@ -9,6 +9,7 @@ import { analyzeAndSaveState } from "@/lib/analysis/student-state";
 import { runWeeklyReview } from "@/lib/plan/plan-review";
 import { getWeekReview } from "@/lib/plan/plan-review";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { generateObservationLog } from "@/lib/partner/logs";
 import { recalculateSpace } from "@/lib/partner/space";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
@@ -132,6 +133,11 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   // 更新学习空间
   recalculateSpace(user.id).catch((e) =>
     console.error("[Checkin] 空间更新失败:", e)
+  );
+
+  // 生成伙伴观察日志
+  generateObservationLog(user.id).catch((e) =>
+    console.error("[Checkin] 观察日志生成失败:", e)
   );
 
   return { feedback };
