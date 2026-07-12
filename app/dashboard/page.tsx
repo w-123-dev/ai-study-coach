@@ -845,9 +845,9 @@ export default function DashboardPage() {
             <CheckCircle2 className="h-5 w-5" />
             学习
           </Link>
-          <Link href="/setup" className="flex flex-col items-center gap-0.5 text-xs text-gray-400">
-            <BookOpen className="h-5 w-5" />
-            资料
+          <Link href="/report" className="flex flex-col items-center gap-0.5 text-xs text-gray-400">
+            <TrendingUp className="h-5 w-5" />
+            周报
           </Link>
           <Link href="/chat" className="flex flex-col items-center gap-0.5 text-xs text-gray-400">
             <Sparkles className="h-5 w-5" />
