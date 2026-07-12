@@ -2,28 +2,16 @@
  * 院校信息种子数据 API
  *
  * POST /api/research/seed
- * 需要 service_role key，仅在服务端可用
+ * 使用新的 secret API key（非 JWT 格式）
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SEED_SCHOOL_PROFILES } from "@/lib/research/seed-data";
 
-// 使用 service_role 创建管理端客户端
-const serviceSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
-
 export async function POST(_request: NextRequest) {
-  // 先检查 key 是否为空
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
     return NextResponse.json(
       { error: "SUPABASE_SERVICE_ROLE_KEY 未设置" },
       { status: 500 }
@@ -35,52 +23,69 @@ export async function POST(_request: NextRequest) {
     let skipped = 0;
     const errors: string[] = [];
 
+    // 使用 fetch 直接调用 Supabase REST API
+    // 新格式 API key 需要用 Authorization: Bearer 头
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
     for (const record of SEED_SCHOOL_PROFILES) {
       // 检查是否已存在
-      const { data: existing, error: checkError } = await serviceSupabase
-        .from("school_profiles")
-        .select("id")
-        .eq("school", record.school)
-        .eq("major", record.major)
-        .maybeSingle();
+      const checkRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/school_profiles?school=eq.${encodeURIComponent(record.school)}&major=eq.${encodeURIComponent(record.major)}&select=id&limit=1`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+          },
+        }
+      );
 
-      if (checkError) {
-        errors.push(`查询失败 ${record.school} ${record.major}: ${checkError.message}`);
+      if (!checkRes.ok) {
+        const checkText = await checkRes.text();
+        errors.push(`查询失败 ${record.school} ${record.major}: ${checkText}`);
         continue;
       }
 
-      if (existing) {
+      const existing = await checkRes.json();
+      if (existing && existing.length > 0) {
         skipped++;
         continue;
       }
 
-      const { error } = await serviceSupabase
-        .from("school_profiles")
-        .insert({
-          school: record.school,
-          major: record.major,
-          exam_subjects: record.exam_subjects,
-          cutoff_score: record.cutoff_score,
-          school_tier: record.school_tier,
-          major_ranking: record.major_ranking,
-          verified: true,
-          data_source: "研招网公开数据",
-          notes:
-            record.exam_subjects.length > 0
-              ? `初试科目：${record.exam_subjects.join("、")}`
-              : null,
-        });
+      // 插入
+      const insertRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/school_profiles`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            school: record.school,
+            major: record.major,
+            exam_subjects: record.exam_subjects,
+            cutoff_score: record.cutoff_score,
+            school_tier: record.school_tier,
+            major_ranking: record.major_ranking,
+            verified: true,
+            data_source: "研招网公开数据",
+          }),
+        }
+      );
 
-      if (error) {
-        console.error(`[Seed] 插入失败 ${record.school} ${record.major}:`, error.message);
-        errors.push(`${record.school} ${record.major}: ${error.message}`);
+      if (!insertRes.ok) {
+        const insertText = await insertRes.text();
+        errors.push(`插入失败 ${record.school} ${record.major}: ${insertText}`);
       } else {
         inserted++;
       }
     }
 
     return NextResponse.json({
-      message: `写入完成，新增${inserted}条，跳过${skipped}条（已存在）`,
+      message: `写入完成，新增${inserted}条，跳过${skipped}条`,
       inserted,
       skipped,
       errors: errors.slice(0, 10),
