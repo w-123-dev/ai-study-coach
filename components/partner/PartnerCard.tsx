@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, Timer, MessageCircle, Loader2, Zap } from "lucide-react";
+import { Timer, MessageCircle, Loader2, Sparkles } from "lucide-react";
 import PartnerAvatar from "./PartnerAvatar";
 import FocusMode from "./FocusMode";
 import PartnerChat from "./PartnerChat";
-import type { UserPartner, PartnerMood } from "@/lib/partner/types";
-import { PARTNER_MOOD_LABELS, calculateLevel } from "@/lib/partner/types";
+import type { UserPartner, PartnerState, PartnerSkin } from "@/lib/partner/types";
+import { PARTNER_STATE_LABELS, SKIN_CONFIGS } from "@/lib/partner/types";
 
 export default function PartnerCard({ userId }: { userId: string }) {
   const [partner, setPartner] = useState<UserPartner | null>(null);
@@ -32,7 +32,6 @@ export default function PartnerCard({ userId }: { userId: string }) {
     }
   }
 
-  /** 专注结束后刷新 */
   function handleFocusEnd() {
     setShowFocus(false);
     loadPartner();
@@ -50,60 +49,60 @@ export default function PartnerCard({ userId }: { userId: string }) {
 
   if (!partner) return null;
 
-  const { level, currentExp, nextThreshold } = calculateLevel(partner.exp);
-  const expPercent = nextThreshold > 0 ? (currentExp / nextThreshold) * 100 : 0;
+  const skinConfig = SKIN_CONFIGS[partner.skin] || SKIN_CONFIGS.default;
+  const stateLabel = PARTNER_STATE_LABELS[partner.state as PartnerState] || "平静";
+  const energyLabel = partner.energy >= 60 ? "充足" : partner.energy >= 30 ? "中等" : "较低";
 
   return (
     <>
       <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-4 transition-all hover:border-white/[0.1]">
         <div className="flex items-start gap-3">
-          {/* 头像 */}
+          {/* Avatar */}
           <PartnerAvatar
-            mood={partner.mood as PartnerMood}
-            level={level}
+            state={partner.state as PartnerState}
+            skin={partner.skin as PartnerSkin}
             size="md"
             interactive
             onClick={() => setShowChat(true)}
           />
 
-          {/* 信息 */}
+          {/* Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-white">{partner.name}</span>
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[11px] font-medium text-blue-400">
-                <Sparkles className="h-3 w-3" />
-                Lv.{level}
-              </span>
-              <span className="ml-auto text-[11px] text-white/40">
-                {PARTNER_MOOD_LABELS[partner.mood as PartnerMood] || "平静"}
+              <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium"
+                style={{ color: skinConfig.primaryColor }}>
+                {stateLabel}
               </span>
             </div>
 
-            {/* 经验条 */}
-            <div className="mt-1.5 flex items-center gap-2">
+            {/* Energy bar */}
+            <div className="mt-2 flex items-center gap-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-500"
-                  style={{ width: `${expPercent}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${partner.energy}%`,
+                    background: `linear-gradient(90deg, ${skinConfig.primaryColor}88, ${skinConfig.primaryColor})`,
+                  }}
                 />
               </div>
-              <span className="text-[10px] text-white/30">
-                {currentExp}/{nextThreshold}
-              </span>
+              <span className="text-[10px] text-white/40">{energyLabel}</span>
             </div>
 
-            {/* 亲密度 + 能量 */}
-            <div className="mt-2 flex items-center gap-4 text-[11px] text-white/40">
-              <span>亲密度 {partner.connection}/100</span>
+            {/* Info line */}
+            <div className="mt-2 flex items-center gap-3 text-[11px] text-white/40">
               <span className="flex items-center gap-1">
-                <Zap className="h-3 w-3" />
-                {partner.energy}%
+                <Sparkles className="h-3 w-3" />
+                认识 {partner.last_interaction_at
+                  ? Math.floor((Date.now() - new Date(partner.last_interaction_at).getTime()) / 86400000) + "天"
+                  : "刚开始"}
               </span>
             </div>
           </div>
         </div>
 
-        {/* 操作按钮 */}
+        {/* Action buttons */}
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => setShowFocus(true)}
@@ -122,18 +121,18 @@ export default function PartnerCard({ userId }: { userId: string }) {
         </div>
       </div>
 
-      {/* 专注模式浮层 */}
+      {/* Focus overlay */}
       {showFocus && (
         <FocusMode
           userId={userId}
           partnerName={partner.name}
-          partnerMood={partner.mood as PartnerMood}
+          partnerState={partner.state as PartnerState}
           onClose={() => setShowFocus(false)}
           onEnd={handleFocusEnd}
         />
       )}
 
-      {/* 聊天浮层 */}
+      {/* Chat overlay */}
       {showChat && (
         <PartnerChat
           userId={userId}

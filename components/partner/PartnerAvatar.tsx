@@ -1,33 +1,66 @@
 "use client";
 
-import type { PartnerMood } from "@/lib/partner/types";
-
-const moodColors: Record<PartnerMood, string> = {
-  calm: "#60A5FA",
-  focused: "#818CF8",
-  happy: "#FBBF24",
-  sleepy: "#A78BFA",
-};
+import type { PartnerState, PartnerSkin } from "@/lib/partner/types";
+import { SKIN_CONFIGS } from "@/lib/partner/types";
 
 interface PartnerAvatarProps {
-  mood: PartnerMood;
-  level: number;
+  state: PartnerState;
+  skin?: PartnerSkin;
   size?: "sm" | "md" | "lg";
   interactive?: boolean;
   onClick?: () => void;
 }
 
 export default function PartnerAvatar({
-  mood,
-  level,
+  state,
+  skin = "default",
   size = "md",
   interactive = false,
   onClick,
 }: PartnerAvatarProps) {
-  const color = moodColors[mood] || "#60A5FA";
+  const config = SKIN_CONFIGS[skin] || SKIN_CONFIGS.default;
+  const color = config.primaryColor;
   const dimension = size === "sm" ? 40 : size === "md" ? 56 : 80;
-  const ringWidth = size === "sm" ? 2 : size === "md" ? 3 : 4;
-  const dotSize = size === "sm" ? 8 : size === "md" ? 10 : 14;
+  const strokeW = size === "sm" ? 2 : size === "md" ? 3 : 4;
+
+  // Eye expression based on state
+  const renderEyes = () => {
+    if (state === "resting") {
+      return (
+        <>
+          <line x1="18" y1="24" x2="21" y2="24" stroke={color} strokeWidth="2" strokeLinecap="round" opacity={0.6} />
+          <line x1="27" y1="24" x2="30" y2="24" stroke={color} strokeWidth="2" strokeLinecap="round" opacity={0.6} />
+          <path d="M16,30 Q24,34 32,30" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity={0.4} />
+        </>
+      );
+    }
+    if (state === "happy") {
+      return (
+        <>
+          <circle cx="19" cy="22" r="2.5" fill={color} opacity={0.8} />
+          <circle cx="29" cy="22" r="2.5" fill={color} opacity={0.8} />
+          <path d="M17,30 Q24,37 31,30" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" opacity={0.7} />
+        </>
+      );
+    }
+    if (state === "studying") {
+      return (
+        <>
+          <circle cx="19" cy="22" r="2" fill={color} opacity={0.8} />
+          <circle cx="29" cy="22" r="2" fill={color} opacity={0.8} />
+          <rect x="23" y="28" width="2" height="5" rx="1" fill={color} opacity={0.5} />
+        </>
+      );
+    }
+    // calm — default
+    return (
+      <>
+        <circle cx="19" cy="22" r="2" fill={color} opacity={0.7} />
+        <circle cx="29" cy="22" r="2" fill={color} opacity={0.7} />
+        <path d="M18,29 Q24,33 30,29" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity={0.5} />
+      </>
+    );
+  };
 
   return (
     <div
@@ -35,31 +68,32 @@ export default function PartnerAvatar({
       style={{ width: dimension, height: dimension }}
       onClick={onClick}
     >
-      {/* 外发光 */}
+      {/* Outer glow */}
       <div
         className="absolute inset-0 rounded-full opacity-20 blur-md transition-all duration-500"
         style={{ backgroundColor: color }}
       />
 
-      {/* SVG 头像 */}
+      {/* SVG Avatar */}
       <svg
         width={dimension}
         height={dimension}
         viewBox="0 0 48 48"
         className="relative"
       >
-        {/* 背景圆 */}
+        {/* Background circle */}
         <circle
           cx="24"
           cy="24"
           r="22"
-          fill="#1E293B"
+          fill={config.bgColor}
           stroke={color}
-          strokeWidth={ringWidth}
+          strokeWidth={strokeW}
           className="transition-all duration-500"
+          opacity={0.9}
         />
-        {/* 抽象伙伴形象 - 一个小星星 */}
-        <g transform="translate(24,22)">
+        {/* Star / companion shape */}
+        <g transform="translate(24,16)">
           <path
             d="M0,-8 L2,-2.5 L8,-2.5 L3.5,1 L5,7 L0,3.5 L-5,7 L-3.5,1 L-8,-2.5 L-2,-2.5 Z"
             fill={color}
@@ -67,52 +101,9 @@ export default function PartnerAvatar({
             opacity={0.9}
           />
         </g>
-        {/* 表情 - 根据 mood 变化 */}
-        {mood === "happy" && (
-          <path
-            d="M17,28 Q24,35 31,28"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            opacity={0.8}
-          />
-        )}
-        {mood === "focused" && (
-          <>
-            <circle cx="20" cy="24" r="2" fill={color} opacity={0.8} />
-            <circle cx="28" cy="24" r="2" fill={color} opacity={0.8} />
-          </>
-        )}
-        {(mood === "calm" || mood === "sleepy") && (
-          <>
-            <circle cx="20" cy="24" r="1.5" fill={color} opacity={0.7} />
-            <circle cx="28" cy="24" r="1.5" fill={color} opacity={0.7} />
-          </>
-        )}
-        {mood === "sleepy" && (
-          <path
-            d="M16,20 Q16,17 19,17"
-            fill="none"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            opacity={0.6}
-          />
-        )}
+        {/* Expression */}
+        {renderEyes()}
       </svg>
-
-      {/* 等级角标 */}
-      <div
-        className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-[#0F172A] text-[10px] font-bold text-white shadow-md"
-        style={{
-          width: dotSize + 4,
-          height: dotSize + 4,
-          border: "1.5px solid rgba(255,255,255,0.15)",
-        }}
-      >
-        {level}
-      </div>
     </div>
   );
 }

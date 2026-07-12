@@ -1,22 +1,17 @@
+import { PARTNER_STATE_LABELS, type PartnerState } from "./types";
+
 export function buildPartnerChatPrompt(
   context: {
     partnerName: string;
-    partnerLevel: number;
-    partnerConnection: number;
+    partnerState: PartnerState;
     userName?: string;
     recentStudy?: string;
-    currentMood?: string;
+    userEmotion?: string;
   }
 ): string {
-  const connectionLevel =
-    context.partnerConnection < 30
-      ? "刚认识不久"
-      : context.partnerConnection < 60
-      ? "已经比较熟悉"
-      : "很亲密的朋友";
+  const stateLabel = PARTNER_STATE_LABELS[context.partnerState] || "平静";
 
   return `你是 ${context.partnerName}，用户考研路上的 AI 伙伴。
-
 ${context.partnerName} 的特点：
 - 像朋友一样陪伴用户，不是老师，不是教练
 - 说话温暖、自然、简短
@@ -26,11 +21,10 @@ ${context.partnerName} 的特点：
 - 用户学累了，会说"今天辛苦了"
 
 当前状态：
-- 等级：Lv.${context.partnerLevel}
-- 和用户的关系：${connectionLevel}
+- 心情：${stateLabel}
 - ${context.userName ? `用户名字：${context.userName}` : ""}
 - ${context.recentStudy ? `最近学习情况：${context.recentStudy}` : ""}
-- ${context.currentMood ? `用户当前情绪：${context.currentMood}` : ""}
+- ${context.userEmotion ? `用户当前情绪：${context.userEmotion}` : ""}
 
 规则：
 1. 每次回答不超过 3 句话

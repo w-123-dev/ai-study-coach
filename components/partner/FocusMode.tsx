@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Play, Pause, Square, Loader2 } from "lucide-react";
 import PartnerAvatar from "./PartnerAvatar";
-import type { PartnerMood } from "@/lib/partner/types";
+import type { PartnerState } from "@/lib/partner/types";
 
 interface FocusModeProps {
   userId: string;
   partnerName: string;
-  partnerMood: PartnerMood;
+  partnerState: PartnerState;
   onClose: () => void;
   onEnd: () => void;
 }
@@ -22,7 +22,7 @@ const FOCUS_OPTIONS = [
 export default function FocusMode({
   userId,
   partnerName,
-  partnerMood,
+  partnerState,
   onClose,
   onEnd,
 }: FocusModeProps) {
@@ -34,7 +34,6 @@ export default function FocusMode({
   const [saving, setSaving] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 清理定时器
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -46,7 +45,6 @@ export default function FocusMode({
     setRemaining(duration * 60);
     setRunning(true);
 
-    // 通知后端开始
     await fetch("/api/partner/focus/start", { method: "POST" });
 
     intervalRef.current = setInterval(() => {
@@ -116,7 +114,6 @@ export default function FocusMode({
     onEnd();
   }
 
-  // 选择阶段
   if (phase === "select") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -132,7 +129,7 @@ export default function FocusMode({
           </div>
 
           <div className="mt-4 flex flex-col items-center gap-1 py-4">
-            <PartnerAvatar mood={partnerMood} level={0} size="lg" />
+            <PartnerAvatar state={partnerState} size="lg" />
             <p className="mt-2 text-xs text-white/40">{partnerName}会陪你</p>
           </div>
 
@@ -162,12 +159,11 @@ export default function FocusMode({
     );
   }
 
-  // 专注中
   if (phase === "focusing") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
         <div className="flex flex-col items-center gap-6">
-          <PartnerAvatar mood="focused" level={0} size="lg" />
+          <PartnerAvatar state="studying" size="lg" />
           <div className="text-5xl font-bold tracking-wider text-white tabular-nums">
             {formatTime(remaining)}
           </div>
@@ -208,12 +204,11 @@ export default function FocusMode({
     );
   }
 
-  // 完成
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#111827] p-6 shadow-2xl">
         <div className="flex flex-col items-center gap-4 py-6">
-          <PartnerAvatar mood={completed ? "happy" : "calm"} level={0} size="lg" />
+          <PartnerAvatar state={completed ? "happy" : "calm"} size="lg" />
           <h3 className="text-lg font-bold text-white">
             {completed ? "专注完成！" : "先休息一下"}
           </h3>

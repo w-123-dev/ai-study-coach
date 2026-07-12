@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api-utils";
 import { onInteraction, getOrCreatePartner } from "@/lib/partner/partner-service";
 import { buildPartnerChatPrompt } from "@/lib/partner/partner-prompt";
 import { callDeepSeekChat } from "@/lib/deepseek";
+import type { PartnerState } from "@/lib/partner/types";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const { message } = await request.json();
@@ -31,11 +32,10 @@ export const POST = withAuth(async (request, { user, supabase }) => {
 
   const context = {
     partnerName: partner.name,
-    partnerLevel: partner.level,
-    partnerConnection: partner.connection,
+    partnerState: partner.state as PartnerState,
     userName: profile?.school ? profile.school + " " + profile.major : undefined,
     recentStudy,
-    currentMood: partner.mood,
+    userEmotion: partner.state,
   };
 
   const prompt = buildPartnerChatPrompt(context);

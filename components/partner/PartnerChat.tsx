@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import PartnerAvatar from "./PartnerAvatar";
-import type { UserPartner, PartnerMood } from "@/lib/partner/types";
-import { PARTNER_MOOD_EMOJI } from "@/lib/partner/types";
+import type { UserPartner, PartnerState } from "@/lib/partner/types";
+import { PARTNER_STATE_LABELS } from "@/lib/partner/types";
 
 interface PartnerChatProps {
   userId: string;
@@ -59,7 +59,6 @@ export default function PartnerChat({
       if (res.ok) {
         const data = await res.json();
         setMessages((prev) => [...prev, { role: "partner", content: data.reply }]);
-        // 更新伙伴状态
         onInteraction();
       } else {
         setMessages((prev) => [
@@ -84,27 +83,24 @@ export default function PartnerChat({
     }
   }
 
-  const moodEmoji = PARTNER_MOOD_EMOJI[partner.mood as PartnerMood] || "😊";
+  const stateLabel = PARTNER_STATE_LABELS[partner.state as PartnerState] || "平静";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
-      {/* 遮罩 */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* 聊天面板 */}
       <div className="relative z-10 mx-3 mb-0 flex h-[70vh] w-full max-w-sm flex-col rounded-t-2xl border border-white/[0.08] bg-[#111827] shadow-2xl md:mb-0 md:h-[480px] md:rounded-2xl">
-        {/* 顶部栏 */}
+        {/* Header */}
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
-          <PartnerAvatar mood={partner.mood as PartnerMood} level={0} size="sm" />
+          <PartnerAvatar state={partner.state as PartnerState} size="sm" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold text-white">{partner.name}</span>
-              <span className="text-xs">{moodEmoji}</span>
             </div>
-            <div className="text-[10px] text-white/40">Lv.{partner.level} · 亲密度 {partner.connection}/100</div>
+            <div className="text-[10px] text-white/40">{stateLabel}</div>
           </div>
           <button
             onClick={onClose}
@@ -114,7 +110,7 @@ export default function PartnerChat({
           </button>
         </div>
 
-        {/* 消息列表 */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-3">
           <div className="space-y-3">
             {messages.map((msg, i) => (
@@ -144,7 +140,7 @@ export default function PartnerChat({
           </div>
         </div>
 
-        {/* 输入区 */}
+        {/* Input */}
         <div className="border-t border-white/[0.06] px-4 py-3">
           <div className="flex items-center gap-2">
             <input
