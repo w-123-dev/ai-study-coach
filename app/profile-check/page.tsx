@@ -96,7 +96,7 @@ export default function ProfileCheckPage() {
   async function handleConfirm() {
     setSubmitting(true);
     setError("");
-    router.push("/plan-success");
+    router.push("/diagnosis");
   }
 
   return (
