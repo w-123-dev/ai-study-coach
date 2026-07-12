@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-utils";
 import { onInteraction, getOrCreatePartner } from "@/lib/partner/partner-service";
-import { buildPartnerChatPrompt } from "@/lib/partner/partner-prompt";
+import { buildPartnerSystemPrompt } from "@/lib/partner/partner-prompt";
 import { callDeepSeekChat } from "@/lib/deepseek";
+import { getRecentMemories, extractMemoriesFromMessage } from "@/lib/partner/memory";
 import type { PartnerState } from "@/lib/partner/types";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
@@ -12,7 +13,9 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   }
 
   const partner = await getOrCreatePartner(user.id);
+  const state = partner.state as PartnerState;
 
+  // 构建当前上下文
   const { data: snapshots } = await supabase
     .from("daily_snapshots")
     .select("*")
@@ -20,36 +23,57 @@ export const POST = withAuth(async (request, { user, supabase }) => {
     .order("date", { ascending: false })
     .limit(3);
 
-  const recentStudy = snapshots && snapshots.length > 0
-    ? snapshots.map((s: any) => s.date + ": " + s.total_hours + "h, rate:" + Math.round(s.completion_rate * 100) + "%").join("; ")
-    : "no study records yet";
-
   const { data: profile } = await supabase
     .from("student_profiles")
     .select("*")
     .eq("user_id", user.id)
     .single();
 
-  const context = {
+  const recentContext = buildContext(profile, snapshots);
+
+  // 读取小伴的记忆
+  const memories = await getRecentMemories(user.id, 5);
+
+  // 构建人格 Prompt
+  const systemPrompt = buildPartnerSystemPrompt({
     partnerName: partner.name,
-    partnerState: partner.state as PartnerState,
-    userName: profile?.school ? profile.school + " " + profile.major : undefined,
-    recentStudy,
-    userEmotion: partner.state,
-  };
+    partnerState: state,
+    memories,
+    recentContext,
+  });
 
-  const prompt = buildPartnerChatPrompt(context);
-  const systemPrompt = prompt + "\n\nUser message: " + message + "\n\nReply as " + partner.name + ", short and friendly.";
-
-  const reply = await callDeepSeekChat([
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: systemPrompt },
     { role: "user", content: message },
-  ], {
-    temperature: 0.8,
-    maxTokens: 500,
+  ];
+
+  const reply = await callDeepSeekChat(messages, {
+    temperature: 0.7,
+    maxTokens: 300,
   });
+
+  // 异步提取记忆（不阻塞回复）
+  extractMemoriesFromMessage(user.id, message, recentContext).catch(() => {});
 
   await onInteraction(user.id);
 
   return { reply };
 });
+
+/** 构建当前上下文文字 */
+function buildContext(profile: any, snapshots: any): string {
+  const parts: string[] = [];
+
+  if (profile?.school) {
+    parts.push(`目标：${profile.school} ${profile.major || ""}`);
+  }
+
+  if (snapshots && snapshots.length > 0) {
+    const recent = snapshots[0];
+    parts.push(`今天学习：${recent.total_hours || 0}小时`);
+  } else {
+    parts.push("今天还没有学习记录");
+  }
+
+  return parts.join("。");
+}
