@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import Hero from "@/components/landing/Hero";
-import PainPoints from "@/components/landing/PainPoints";
+import CoachDifference from "@/components/landing/CoachDifference";
 import CoachFlow from "@/components/landing/CoachFlow";
 import ProductDemo from "@/components/landing/ProductDemo";
 import GrowthTimeline from "@/components/landing/GrowthTimeline";
@@ -40,7 +40,7 @@ export default function HomePage() {
 
       <main>
         <Hero />
-        <PainPoints />
+        <CoachDifference />
         <CoachFlow />
         <ProductDemo />
         <GrowthTimeline />
