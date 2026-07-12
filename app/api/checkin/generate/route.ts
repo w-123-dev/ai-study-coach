@@ -9,6 +9,7 @@ import { analyzeAndSaveState } from "@/lib/analysis/student-state";
 import { runWeeklyReview } from "@/lib/plan/plan-review";
 import { getWeekReview } from "@/lib/plan/plan-review";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recalculateSpace } from "@/lib/partner/space";
 
 export const POST = withAuth(async (request, { user, supabase }) => {
   const body = await safeParseJSON<{
@@ -126,6 +127,11 @@ export const POST = withAuth(async (request, { user, supabase }) => {
   // 每周自动复盘（每 7 天触发一次）
   triggerWeeklyReview(supabase, user.id).catch((e) =>
     console.error("[Checkin] 周复盘失败:", e)
+  );
+
+  // 更新学习空间
+  recalculateSpace(user.id).catch((e) =>
+    console.error("[Checkin] 空间更新失败:", e)
   );
 
   return { feedback };

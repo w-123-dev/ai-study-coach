@@ -7,6 +7,7 @@ import FocusMode from "./FocusMode";
 import PartnerChat from "./PartnerChat";
 import type { UserPartner, PartnerState, PartnerSkin } from "@/lib/partner/types";
 import { PARTNER_STATE_LABELS, SKIN_CONFIGS } from "@/lib/partner/types";
+import { usePartnerBehavior } from "@/lib/partner/behavior";
 
 export default function PartnerCard({ userId }: { userId: string }) {
   const [partner, setPartner] = useState<UserPartner | null>(null);
@@ -37,6 +38,10 @@ export default function PartnerCard({ userId }: { userId: string }) {
     loadPartner();
   }
 
+  // Behavior state machine — only when partner is loaded
+  const topState = (partner?.state as PartnerState) || "calm";
+  const behavior = usePartnerBehavior(topState);
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-4">
@@ -57,9 +62,10 @@ export default function PartnerCard({ userId }: { userId: string }) {
     <>
       <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-4 transition-all hover:border-white/[0.1]">
         <div className="flex items-start gap-3">
-          {/* Avatar */}
+          {/* Avatar with behavior animations */}
           <PartnerAvatar
             state={partner.state as PartnerState}
+            behavior={behavior}
             skin={partner.skin as PartnerSkin}
             size="md"
             interactive

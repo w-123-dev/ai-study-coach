@@ -27,6 +27,8 @@ import {
 import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib/types";
 import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
 import PartnerCard from "@/components/partner/PartnerCard";
+import StudySpace from "@/components/partner/StudySpace";
+import type { PartnerSpace } from "@/lib/partner/space";
 
 
 interface TodayCheckin {
@@ -117,6 +119,7 @@ export default function DashboardPage() {
   const [streak, setStreak] = useState(0);
   const [daysUntilExam, setDaysUntilExam] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [space, setSpace] = useState<PartnerSpace | null>(null);
 
   // 任务折叠状态：首次进入默认折叠
   const [taskCollapsed, setTaskCollapsed] = useState(() => {
@@ -298,9 +301,18 @@ export default function DashboardPage() {
             break;
           }
         }
-        setStreak(count);
+    setStreak(count);
       }
     }
+
+    // 加载学习空间
+    try {
+      const spaceRes = await fetch("/api/partner/space");
+      if (spaceRes.ok) {
+        const spaceData = await spaceRes.json();
+        setSpace(spaceData.space);
+      }
+    } catch {}
 
     setLoading(false);
   }, [router, todayStr]);
@@ -541,6 +553,13 @@ export default function DashboardPage() {
         {userId && (
           <section className="mb-5">
             <PartnerCard userId={userId} />
+          </section>
+        )}
+
+        {/* ========== 学习空间 ========== */}
+        {userId && (
+          <section className="mb-5">
+            <StudySpace space={space} />
           </section>
         )}
 
