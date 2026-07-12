@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { callDeepSeek } from "@/lib/deepseek";
 
 /**
@@ -89,6 +89,13 @@ export async function runCoachDetection(
 
     if (snapshots.error || tasks.error) {
       console.error("[CoachDetector] 数据加载失败");
+      return [];
+    }
+
+    // New user guard: skip detection if no real learning activity
+    const hasRealActivity = (checkins.data?.length ?? 0) > 0 || (snapshots.data?.length ?? 0) > 0;
+    if (!hasRealActivity) {
+      console.log('[CoachDetector] new user, skip detection');
       return [];
     }
 
