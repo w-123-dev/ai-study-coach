@@ -9,20 +9,14 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
-  CalendarDays,
   Sparkles,
-  LogOut,
+  Target,
   Flame,
-  Brain,
   Clock,
-  Zap,
-  ChevronLeft,
   ChevronRight,
-  SmilePlus,
-  BatteryFull,
-  BatteryLow,
-  Frown,
-  Edit3
+  TrendingUp,
+  MessageCircle,
+  Zap,
 } from "lucide-react";
 import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib/types";
 import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
@@ -39,16 +33,15 @@ interface TodayCheckin {
 
 const statusOptions = [
   { value: "energetic", label: "精力充沛", icon: Zap },
-  { value: "normal", label: "状态一般", icon: Brain },
-  { value: "tired", label: "比较疲惫", icon: Clock },
+  { value: "normal", label: "状态一般", icon: Clock },
+  { value: "tired", label: "比较疲惫", icon: Flame },
 ];
 
-/** 科目颜色映射 */
 const subjectColors: Record<string, string> = {
   "数学": "bg-blue-50 text-blue-700 border-blue-200",
   "英语": "bg-green-50 text-green-700 border-green-200",
   "政治": "bg-red-50 text-red-700 border-red-200",
-  "专业课": "bg-purple-50 text-purple-700 border-purple-200",
+  "专业": "bg-purple-50 text-purple-700 border-purple-200",
 };
 
 function getSubjectColor(subject: string): string {
@@ -68,6 +61,7 @@ export default function DashboardPage() {
   const [hasPlan, setHasPlan] = useState(false);
   const [todayStr, setTodayStr] = useState("");
   const [streak, setStreak] = useState(0);
+  const [daysUntilExam, setDaysUntilExam] = useState(0);
 
   // 打卡状态
   const [checkin, setCheckin] = useState<TodayCheckin | null>(null);
@@ -80,25 +74,49 @@ export default function DashboardPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 已打卡任务记录（用于今日打卡弹窗）
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
   const [taskUpdates, setTaskUpdates] = useState<Record<string, {completed: boolean; actualHours: number}>>({});
+
+  const [weeklyStats, setWeeklyStats] = useState<{
+    total: number;
+    completed: number;
+    bySubject: Record<string, { total: number; completed: number }>;
+  }>({ total: 0, completed: 0, bySubject: {} });
 
   const loadTasks = useCallback(async (week: number) => {
     try {
       const res = await fetch(`/api/plan/tasks?week=${week}`);
       if (!res.ok) return;
       const data = await res.json();
-      setTasks(data.tasks ?? []);
+      const allTasks = data.tasks ?? [];
+      setTasks(allTasks);
       setCurrentWeek(data.currentWeek ?? week);
       setHasPlan(data.hasPlan ?? false);
 
-      // 记录已完成的任务 ID
       setCompletedTaskIds(
-        (data.tasks ?? [])
-          .filter((t: PlanTask) => t.status === "completed")
-          .map((t: PlanTask) => t.id)
+        allTasks.filter((t: PlanTask) => t.status === "completed").map((t: PlanTask) => t.id)
       );
+
+      // 计算本周统计
+      const bySubject: Record<string, { total: number; completed: number }> = {};
+      let totalCount = 0;
+      let completedCount = 0;
+
+      allTasks.forEach((t: PlanTask) => {
+        totalCount++;
+        if (t.status === "completed") completedCount++;
+        if (!bySubject[t.subject]) {
+          bySubject[t.subject] = { total: 0, completed: 0 };
+        }
+        bySubject[t.subject].total++;
+        if (t.status === "completed") bySubject[t.subject].completed++;
+      });
+
+      setWeeklyStats({
+        total: totalCount,
+        completed: completedCount,
+        bySubject,
+      });
     } catch (e) {
       console.warn("[Dashboard] 加载任务失败:", e);
     }
@@ -127,6 +145,15 @@ export default function DashboardPage() {
 
     setProfile(profileData);
     setPlan(profileData.study_plan);
+
+    // 计算考研倒计时
+    if (profileData.exam_year) {
+      const examDate = new Date(profileData.exam_year, 11, 21);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diff = Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      setDaysUntilExam(Math.max(0, diff));
+    }
 
     if (todayStr) {
       // 读取今日打卡
@@ -172,10 +199,8 @@ export default function DashboardPage() {
     setLoading(false);
   }, [router, todayStr]);
 
-  // 加载本周任务
   useEffect(() => {
     if (todayStr && profile) {
-      // 先从 profile 拿到 currentWeek，再加载
       const week = profile.study_plan
         ? calculateClientWeek(profile.study_plan)
         : 1;
@@ -195,7 +220,6 @@ export default function DashboardPage() {
     }
   }, [todayStr, loadData]);
 
-  /** 客户端版周计算（与服务端一致） */
   function calculateClientWeek(plan: StudyPlan): number {
     const firstWeek = plan.weekly_plan?.[0];
     if (!firstWeek?.period) return 1;
@@ -211,14 +235,12 @@ export default function DashboardPage() {
   async function toggleTask(taskId: string, currentStatus: string) {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
 
-    // 乐观更新 UI
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId ? { ...t, status: newStatus as PlanTask["status"] } : t
       )
     );
 
-    // 调 API 更新数据库
     try {
       const res = await fetch("/api/plan/tasks", {
         method: "PATCH",
@@ -226,7 +248,6 @@ export default function DashboardPage() {
         body: JSON.stringify({ taskId, status: newStatus }),
       });
       if (!res.ok) {
-        // 失败时回滚
         setTasks((prev) =>
           prev.map((t) =>
             t.id === taskId ? { ...t, status: currentStatus as PlanTask["status"] } : t
@@ -286,7 +307,6 @@ export default function DashboardPage() {
         ai_feedback: data.feedback || null,
       });
 
-      // 刷新连续打卡
       loadData();
     } catch (e) {
       console.warn("[Dashboard] 打卡失败:", e);
@@ -322,390 +342,349 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-blue-600" />
-            <span className="text-[15px] font-semibold text-gray-900">AI考研教练</span>
-          </Link>
-          <button onClick={handleLogout} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600">
-            <LogOut className="h-4 w-4" />
-            退出
-          </button>
+            <span className="text-[15px] font-semibold tracking-tight text-gray-900">
+              AI考研教练
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/chat"
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI对话
+            </Link>
+            <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">
+              退出
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-5 py-6 pb-28">
-        {/* 顶部问候 + 连续打卡 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {greeting}{profile ? `，${profile.major}考研中` : ""}
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-500">{profile?.school}</p>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
-            <Flame className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-medium text-orange-600">连续 {streak} 天</span>
-          </div>
-        </div>
-
-        {!hasPlan ? (
-          <div className="flex flex-col items-center gap-4 py-12">
-            <p className="text-sm text-gray-500">还没有学习计划</p>
-            <Link
-              href="/setup"
-              className="rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-medium text-white"
-            >
-              去填写考研信息
-            </Link>
-          </div>
-        ) : (
-          <>
-            {/* AI反馈卡片 */}
-            {feedback && (
-              <section className="mb-6 animate-fadeIn">
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                  <div className="mb-2 flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-medium text-blue-700">AI 今日反馈</span>
-                  </div>
-                  <p className="text-sm leading-relaxed text-blue-900">{feedback}</p>
-                </div>
-              </section>
-            )}
-
-            {/* 今日进度 */}
-            <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-900">本周进度</span>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {completedCount}/{totalCount} 完成
-                </span>
+      <main className="mx-auto max-w-3xl px-5 pb-24 pt-5">
+        {/* ========== 顶部：倒计时 + 连续打卡 ========== */}
+        <section className="mb-5">
+          <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 p-5 text-white">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-300">{greeting}，考研人</p>
+                <h1 className="mt-1 text-lg font-bold tracking-tight">
+                  {profile?.school || "目标院校"} · {profile?.major || "目标专业"}
+                </h1>
               </div>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-gray-900 transition-all duration-500 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
+              <div className="text-right">
+                <div className="flex items-center gap-1.5">
+                  <Flame className="h-4 w-4 text-orange-400" />
+                  <span className="text-sm font-semibold">{streak}天</span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-gray-400">连续打卡</p>
               </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+                <Target className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">距离考研</p>
+                <p className="text-2xl font-bold tracking-tight">{daysUntilExam}<span className="ml-1 text-sm font-normal text-gray-300">天</span></p>
+              </div>
+              <div className="ml-auto flex items-center gap-1 text-xs text-gray-300">
+                <span>第 {currentWeek}/{totalWeeks} 周</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========== 核心区：今日任务 ========== */}
+        <section className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              今日任务
               {totalCount > 0 && (
-                <p className="mt-2 text-xs text-gray-400">
-                  {progress === 100 ? "本周任务全部完成！" : `已完成 ${progress}%`}
-                </p>
+                <span className="ml-2 text-xs font-normal text-gray-400">
+                  {completedCount}/{totalCount} 已完成
+                </span>
               )}
-              {totalCount === 0 && <p className="mt-2 text-xs text-gray-400">暂无本周任务</p>}
-            </section>
+            </h2>
+            {!checkin && totalCount > 0 && (
+              <button
+                onClick={() => setShowCheckin(true)}
+                className="flex items-center gap-1 rounded-full bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-800"
+              >
+                <Sparkles className="h-3 w-3" />
+                打卡
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {tasks.length === 0 && hasPlan && (
+              <div className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center">
+                <Clock className="mx-auto h-6 w-6 text-gray-300" />
+                <p className="mt-2 text-sm text-gray-500">本周任务已全部完成，休息一下吧</p>
+              </div>
+            )}
+            {tasks.length === 0 && !hasPlan && (
+              <div className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center">
+                <BookOpen className="mx-auto h-6 w-6 text-gray-300" />
+                <p className="mt-2 text-sm text-gray-500">还没有学习计划，先去填写考研信息</p>
+                <Link
+                  href="/setup"
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-800"
+                >
+                  去填写
+                </Link>
+              </div>
+            )}
+            {tasks.map((task) => (
+              <button
+                key={task.id}
+                onClick={() => toggleTask(task.id, task.status)}
+                className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                  task.status === "completed"
+                    ? "border-green-100 bg-green-50/50"
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                }`}
+              >
+                <div
+                  className={`shrink-0 rounded-full border-2 p-0.5 transition-colors ${
+                    task.status === "completed"
+                      ? "border-green-500 bg-green-500 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {task.status === "completed" ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-gray-300" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${getSubjectColor(task.subject)}`}>
+                      {task.subject}
+                    </span>
+                    {task.status === "completed" && (
+                      <span className="text-[11px] text-green-600 font-medium">已完成</span>
+                    )}
+                  </div>
+                  <p className={`mt-0.5 text-sm ${
+                    task.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"
+                  }`}>
+                    {task.content}
+                  </p>
+                </div>
+                <div className="shrink-0 text-xs text-gray-400">
+                  {task.planned_hours}h
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
 
-            {/* 周导航 */}
-            <section className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-gray-900">
-                第 {currentWeek} 周 / 共 {totalWeeks} 周
-              </h2>
+        {/* ========== AI 教练建议 ========== */}
+        {feedback && (
+          <section className="mb-4 animate-fadeIn">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <span className="text-xs font-semibold text-blue-800">AI教练反馈</span>
+              </div>
+              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{feedback}</p>
+              <Link
+                href="/chat"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                和AI教练聊聊
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {!feedback && hasPlan && (
+          <section className="mb-4">
+            <Link
+              href="/chat"
+              className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400"
+            >
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const prev = Math.max(1, currentWeek - 1);
-                    loadTasks(prev);
-                  }}
-                  disabled={currentWeek <= 1}
-                  className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-600 disabled:opacity-30"
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+                  <MessageCircle className="h-4 w-4 text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">和AI教练聊聊</p>
+                  <p className="text-xs text-gray-400">学习计划、备考策略、心理调节...</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-300" />
+            </Link>
+          </section>
+        )}
+
+        {/* ========== 本周进度 ========== */}
+        {hasPlan && (
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-gray-900">本周进度</h2>
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              {/* 总进度 */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-gray-500">总完成率</span>
+                  <span className="text-xs font-semibold text-gray-900">{weeklyStats.total > 0 ? Math.round((weeklyStats.completed / weeklyStats.total) * 100) : 0}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gray-900 transition-all duration-500"
+                    style={{ width: `${weeklyStats.total > 0 ? (weeklyStats.completed / weeklyStats.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+              {/* 科目进度 */}
+              <div className="space-y-2.5">
+                {Object.entries(weeklyStats.bySubject).map(([subject, stats]) => {
+                  const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                  const colorClass = getSubjectColor(subject).split(" ")[0];
+                  return (
+                    <div key={subject}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${getSubjectColor(subject)}`}>
+                          {subject}
+                        </span>
+                        <span className="text-[11px] text-gray-500">
+                          {stats.completed}/{stats.total}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${rate >= 80 ? "bg-green-500" : rate >= 50 ? "bg-yellow-500" : "bg-red-400"}`}
+                          style={{ width: `${rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+                <span className="text-xs text-gray-400">第 {currentWeek} 周</span>
+                <Link
+                  href="/chat"
+                  className="flex items-center gap-0.5 text-xs font-medium text-gray-600 hover:text-gray-900"
                 >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    const next = Math.min(totalWeeks, currentWeek + 1);
-                    loadTasks(next);
-                  }}
-                  disabled={currentWeek >= totalWeeks}
-                  className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-600 disabled:opacity-30"
-                >
-                  <ChevronRight className="h-4 w-4" />
+                  <TrendingUp className="h-3 w-3" />
+                  查看分析
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ========== 打卡弹窗 ========== */}
+        {showCheckin && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 pb-0 sm:items-center sm:pb-4">
+            <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl animate-slideUp">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-900">今日学习打卡</h2>
+                <button onClick={() => setShowCheckin(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                  取消
                 </button>
               </div>
-            </section>
+              <form onSubmit={handleCheckin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">今日学习时间（小时）</label>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={16}
+                      step={0.5}
+                      value={studyHours}
+                      onChange={(e) => setStudyHours(Number(e.target.value))}
+                      className="flex-1 accent-gray-900"
+                    />
+                    <span className="w-10 text-center text-sm font-semibold text-gray-900">{studyHours}h</span>
+                  </div>
+                </div>
 
-            {/* 本周任务 */}
-            <section className="mb-6">
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <button
-                    key={task.id}
-                    onClick={() => toggleTask(task.id, task.status)}
-                    className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
-                      task.status === "completed"
-                        ? "border-gray-100 bg-white opacity-60"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-                    }`}
-                  >
-                    {task.status === "completed" ? (
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500 transition-all duration-200" />
-                    ) : (
-                      <Circle className="h-5 w-5 shrink-0 text-gray-300 transition-all duration-200 hover:text-gray-400" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${getSubjectColor(task.subject)}`}>
-                          {task.subject}
-                        </span>
-                        {task.priority === "high" && (
-                          <span className="text-[11px] font-medium text-red-500">重要</span>
-                        )}
-                      </div>
-                      <p
-                        className={`mt-1 text-sm transition-all duration-200 ${
-                          task.status === "completed" ? "line-through text-gray-400" : "text-gray-900"
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">今天的情绪</label>
+                  <div className="mt-1.5 flex gap-2">
+                    {(["happy", "normal", "anxious", "tired"] as Emotion[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setEmotion(key)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
+                          emotion === key
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
                         }`}
                       >
-                        {task.content}
-                      </p>
-                      <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-400">
-                        <span>预计 {task.planned_hours}h</span>
-                        <span>
-                          {"●".repeat(task.difficulty)}
-                          {"○".repeat(5 - task.difficulty)}
-                        </span>
-                        <span className="text-gray-300">{task.difficulty === 5 ? "难" : task.difficulty >= 3 ? "中" : "易"}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* 打卡入口 */}
-            <section className="mb-6">
-              {!checkin ? (
-                <button
-                  onClick={() => setShowCheckin(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3.5 text-sm font-medium text-gray-600 transition-all hover:border-gray-400 hover:text-gray-800"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  完成打卡，获取AI反馈
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowCheckin(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 py-3.5 text-sm font-medium text-green-700 transition-all hover:bg-green-100"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  已打卡 · 再记录一次
-                </button>
-              )}
-            </section>
-
-            {/* 打卡弹窗 */}
-            {showCheckin && (
-              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30">
-                <div className="w-full max-w-lg animate-fadeIn rounded-t-2xl bg-white px-6 pb-10 pt-6 shadow-2xl">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-gray-900">记录今日学习</h3>
-                    <button
-                      onClick={() => setShowCheckin(false)}
-                      className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
-                    >
-                      ✕
-                    </button>
+                        {EMOTION_LABELS[key]}
+                      </button>
+                    ))}
                   </div>
-
-                  <form onSubmit={handleCheckin} className="space-y-5">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">今天学习了多久？</label>
-                      <div className="mt-1.5 flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={0}
-                          max={16}
-                          step={0.5}
-                          value={studyHours}
-                          onChange={(e) => setStudyHours(Number(e.target.value))}
-                          className="flex-1 accent-gray-900"
-                        />
-                        <span className="w-12 text-sm font-medium text-gray-900">{studyHours}h</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">今天的心情</label>
-                      <div className="mt-1.5 flex gap-2">
-                        {(["happy","normal","anxious","tired"] as Emotion[]).map((key) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setEmotion(key)}
-                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
-                              emotion === key
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 text-gray-600 hover:border-gray-300"
-                            }`}
-                          >
-                            {EMOTION_LABELS[key]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">今天的精力</label>
-                      <div className="mt-1.5 flex gap-2">
-                        {(["high","medium","low"] as Energy[]).map((key) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setEnergy(key)}
-                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
-                              energy === key
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 text-gray-600 hover:border-gray-300"
-                            }`}
-                          >
-                            {key === "high" ? <BatteryFull className="h-4 w-4" /> : key === "low" ? <BatteryLow className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                            {ENERGY_LABELS[key]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">今天的学习状态</label>
-                      <div className="mt-1.5 flex gap-2">
-                        {statusOptions.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setCheckinStatus(opt.value)}
-                            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
-                              checkinStatus === opt.value
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 text-gray-600 hover:border-gray-300"
-                            }`}
-                          >
-                            <opt.icon className="h-4 w-4" />
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">遇到的困难（选填）</label>
-                      <textarea
-                        value={difficulties}
-                        onChange={(e) => setDifficulties(e.target.value)}
-                        placeholder="今天学习遇到什么困难？"
-                        rows={2}
-                        className="mt-1.5 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-2">今日任务完成情况</label>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {tasks.map((task) => {
-                          const update = taskUpdates[task.id] || { completed: false, actualHours: 0 };
-                          return (
-                            <div key={task.id} className="flex items-center gap-2 rounded-lg border border-gray-200 p-2.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTaskUpdates((prev) => ({
-                                    ...prev,
-                                    [task.id]: {
-                                      completed: !(prev[task.id]?.completed ?? false),
-                                      actualHours: prev[task.id]?.actualHours || task.planned_hours,
-                                    },
-                                  }));
-                                }}
-                                className={`shrink-0 rounded-full border-2 p-0.5 ${
-                                  update.completed
-                                    ? "border-green-500 bg-green-500 text-white"
-                                    : "border-gray-300"
-                                }`}
-                              >
-                                {update.completed ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                ) : (
-                                  <Circle className="h-3.5 w-3.5 text-gray-300" />
-                                )}
-                              </button>
-                              <div className="min-w-0 flex-1">
-                                <span className="text-xs font-medium text-gray-700">{task.subject} · {task.content}</span>
-                                <div className="text-[11px] text-gray-400">计划 {task.planned_hours}h</div>
-                              </div>
-                              {update.completed && (
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={16}
-                                  step={0.5}
-                                  value={update.actualHours}
-                                  onChange={(e) => {
-                                    setTaskUpdates((prev) => ({
-                                      ...prev,
-                                      [task.id]: { ...prev[task.id], actualHours: Number(e.target.value) },
-                                    }));
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-16 rounded-md border border-gray-200 px-2 py-1 text-center text-xs text-gray-700 focus:border-gray-400 focus:outline-none"
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          AI分析中...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4" />
-                          提交并获取AI反馈
-                        </>
-                      )}
-                    </button>
-                  </form>
                 </div>
-              </div>
-            )}
 
-            {/* 阶段计划 */}
-            {plan?.stages && plan.stages.length > 0 && (
-              <section className="mb-6">
-                <h2 className="mb-3 text-sm font-medium text-gray-900">备考阶段</h2>
-                <div className="space-y-3">
-                  {plan.stages.map((stage, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[11px] font-medium text-white">
-                          {idx + 1}
-                        </div>
-                        <h3 className="text-sm font-semibold text-gray-900">{stage.name}</h3>
-                      </div>
-                      <p className="mt-2 text-sm leading-relaxed text-gray-600">{stage.goal}</p>
-                      <p className="mt-1 text-xs text-gray-400">{stage.focus}</p>
-                    </div>
-                  ))}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">今天的精力</label>
+                  <div className="mt-1.5 flex gap-2">
+                    {(["high","medium","low"] as Energy[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setEnergy(key)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
+                          energy === key
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {ENERGY_LABELS[key]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </section>
-            )}
-          </>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">今天遇到的问题（选填）</label>
+                  <textarea
+                    value={difficulties}
+                    onChange={(e) => setDifficulties(e.target.value)}
+                    placeholder="今天学习遇到什么困难？"
+                    rows={2}
+                    className="mt-1.5 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      AI分析中...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      提交并获取AI反馈
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
         )}
       </main>
 
+      {/* ========== 底部导航 ========== */}
       <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-around px-5">
           <Link
@@ -731,8 +710,15 @@ export default function DashboardPage() {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.25s ease-out;
         }
       `}</style>
     </div>
