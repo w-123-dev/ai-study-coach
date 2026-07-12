@@ -17,6 +17,11 @@ import {
   TrendingUp,
   MessageCircle,
   Zap,
+  Bell,
+  X,
+  AlertTriangle,
+  AlertCircle,
+  Info,
 } from "lucide-react";
 import type { StudentProfile, StudyPlan, PlanTask, Emotion, Energy } from "@/lib/types";
 import { EMOTION_LABELS, ENERGY_LABELS } from "@/lib/types";
@@ -29,6 +34,19 @@ interface TodayCheckin {
   status: string;
   difficulties: string;
   ai_feedback: string | null;
+}
+
+interface CoachMessage {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  related_subject: string | null;
+  severity: string;
+  status: string;
+  created_at: string;
+  read_at: string | null;
 }
 
 const statusOptions = [
@@ -49,6 +67,39 @@ function getSubjectColor(subject: string): string {
     if (subject.includes(key)) return color;
   }
   return "bg-gray-50 text-gray-700 border-gray-200";
+}
+
+function getSeverityStyle(severity: string) {
+  switch (severity) {
+    case "critical":
+      return "border-red-200 bg-red-50";
+    case "warning":
+      return "border-amber-200 bg-amber-50";
+    default:
+      return "border-blue-200 bg-blue-50";
+  }
+}
+
+function getSeverityIcon(severity: string) {
+  switch (severity) {
+    case "critical":
+      return AlertCircle;
+    case "warning":
+      return AlertTriangle;
+    default:
+      return Info;
+  }
+}
+
+function getSeverityIconColor(severity: string) {
+  switch (severity) {
+    case "critical":
+      return "text-red-500";
+    case "warning":
+      return "text-amber-500";
+    default:
+      return "text-blue-500";
+  }
 }
 
 export default function DashboardPage() {
@@ -83,6 +134,10 @@ export default function DashboardPage() {
     bySubject: Record<string, { total: number; completed: number }>;
   }>({ total: 0, completed: 0, bySubject: {} });
 
+  // AI教练消息
+  const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
+  const [loadingCoach, setLoadingCoach] = useState(false);
+
   const loadTasks = useCallback(async (week: number) => {
     try {
       const res = await fetch(`/api/plan/tasks?week=${week}`);
@@ -97,7 +152,6 @@ export default function DashboardPage() {
         allTasks.filter((t: PlanTask) => t.status === "completed").map((t: PlanTask) => t.id)
       );
 
-      // 计算本周统计
       const bySubject: Record<string, { total: number; completed: number }> = {};
       let totalCount = 0;
       let completedCount = 0;
@@ -112,13 +166,50 @@ export default function DashboardPage() {
         if (t.status === "completed") bySubject[t.subject].completed++;
       });
 
-      setWeeklyStats({
-        total: totalCount,
-        completed: completedCount,
-        bySubject,
-      });
+      setWeeklyStats({ total: totalCount, completed: completedCount, bySubject });
     } catch (e) {
       console.warn("[Dashboard] 加载任务失败:", e);
+    }
+  }, []);
+
+  const loadCoachMessages = useCallback(async () => {
+    try {
+      setLoadingCoach(true);
+      const res = await fetch("/api/coach/detect");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.data?.messages) {
+        setCoachMessages(data.data.messages);
+      }
+    } catch (e) {
+      console.warn("[Dashboard] 加载教练消息失败:", e);
+    } finally {
+      setLoadingCoach(false);
+    }
+  }, []);
+
+  const triggerDetection = useCallback(async () => {
+    try {
+      await fetch("/api/coach/detect", { method: "POST" });
+      // 检测后重新加载
+      await loadCoachMessages();
+    } catch (e) {
+      console.warn("[Dashboard] 触发检测失败:", e);
+    }
+  }, [loadCoachMessages]);
+
+  const dismissCoachMessage = useCallback(async (messageId: string) => {
+    try {
+      const res = await fetch("/api/coach/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, status: "read" }),
+      });
+      if (res.ok) {
+        setCoachMessages((prev) => prev.filter((m) => m.id !== messageId));
+      }
+    } catch (e) {
+      console.warn("[Dashboard] 忽略消息失败:", e);
     }
   }, []);
 
@@ -146,7 +237,6 @@ export default function DashboardPage() {
     setProfile(profileData);
     setPlan(profileData.study_plan);
 
-    // 计算考研倒计时
     if (profileData.exam_year) {
       const examDate = new Date(profileData.exam_year, 11, 21);
       const today = new Date();
@@ -156,7 +246,6 @@ export default function DashboardPage() {
     }
 
     if (todayStr) {
-      // 读取今日打卡
       const { data: checkinData } = await supabase
         .from("daily_checkins")
         .select("*")
@@ -172,7 +261,6 @@ export default function DashboardPage() {
         setDifficulties(checkinData.difficulties || "");
       }
 
-      // 计算连续打卡
       const { data: allCheckins } = await supabase
         .from("daily_checkins")
         .select("checkin_date")
@@ -219,6 +307,16 @@ export default function DashboardPage() {
       loadData();
     }
   }, [todayStr, loadData]);
+
+  // 加载教练消息并在加载完成后触发检测
+  useEffect(() => {
+    if (!loading && profile) {
+      loadCoachMessages().then(() => {
+        // 延迟触发检测，避免阻塞页面加载
+        setTimeout(() => triggerDetection(), 2000);
+      });
+    }
+  }, [loading, profile, loadCoachMessages, triggerDetection]);
 
   function calculateClientWeek(plan: StudyPlan): number {
     const firstWeek = plan.weekly_plan?.[0];
@@ -307,6 +405,9 @@ export default function DashboardPage() {
         ai_feedback: data.feedback || null,
       });
 
+      // 打卡后触发教练检测
+      setTimeout(() => triggerDetection(), 1000);
+
       loadData();
     } catch (e) {
       console.warn("[Dashboard] 打卡失败:", e);
@@ -364,6 +465,59 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 pb-24 pt-5">
+        {/* ========== AI教练主动消息 ========== */}
+        {coachMessages.length > 0 && (
+          <section className="mb-4 space-y-2">
+            {coachMessages.map((msg) => {
+              const SeverityIcon = getSeverityIcon(msg.severity);
+              return (
+                <div
+                  key={msg.id}
+                  className={`relative rounded-xl border p-4 animate-slideDown ${getSeverityStyle(msg.severity)}`}
+                >
+                  <button
+                    onClick={() => dismissCoachMessage(msg.id)}
+                    className="absolute right-3 top-3 rounded-full p-0.5 text-gray-400 hover:text-gray-600 hover:bg-white/50 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 shrink-0 ${getSeverityIconColor(msg.severity)}`}>
+                      <SeverityIcon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-900">{msg.title}</span>
+                        {msg.related_subject && (
+                          <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${getSubjectColor(msg.related_subject)}`}>
+                            {msg.related_subject}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-gray-700">{msg.message}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <Link
+                          href="/chat"
+                          className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[11px] font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          和教练聊聊
+                        </Link>
+                        <button
+                          onClick={() => dismissCoachMessage(msg.id)}
+                          className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          我知道了
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
         {/* ========== 顶部：倒计时 + 连续打卡 ========== */}
         <section className="mb-5">
           <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 p-5 text-white">
@@ -421,7 +575,7 @@ export default function DashboardPage() {
           <div className="space-y-2">
             {tasks.length === 0 && hasPlan && (
               <div className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center">
-                <Clock className="mx-auto h-6 w-6 text-gray-300" />
+                <CheckCircle2 className="mx-auto h-6 w-6 text-green-400" />
                 <p className="mt-2 text-sm text-gray-500">本周任务已全部完成，休息一下吧</p>
               </div>
             )}
@@ -531,7 +685,6 @@ export default function DashboardPage() {
           <section>
             <h2 className="mb-3 text-sm font-semibold text-gray-900">本周进度</h2>
             <div className="rounded-xl border border-gray-200 bg-white p-4">
-              {/* 总进度 */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-gray-500">总完成率</span>
@@ -544,11 +697,9 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
-              {/* 科目进度 */}
               <div className="space-y-2.5">
                 {Object.entries(weeklyStats.bySubject).map(([subject, stats]) => {
                   const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-                  const colorClass = getSubjectColor(subject).split(" ")[0];
                   return (
                     <div key={subject}>
                       <div className="flex items-center justify-between mb-1">
@@ -714,11 +865,18 @@ export default function DashboardPage() {
           from { transform: translateY(20px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out;
         }
         .animate-slideUp {
           animation: slideUp 0.25s ease-out;
+        }
+        .animate-slideDown {
+          animation: slideDown 0.35s ease-out;
         }
       `}</style>
     </div>
