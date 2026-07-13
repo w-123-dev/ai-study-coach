@@ -1,101 +1,105 @@
 "use client";
 
-import { Target, Calendar, LineChart, Trophy } from "lucide-react";
+import { useEffect, useRef } from "react";
 
-const phases = [
+function FadeInSection({ children, delay }: { children: React.ReactNode; delay: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("opacity-100", "translate-y-0");
+          entry.target.classList.remove("opacity-0", "translate-y-4");
+        }
+      },
+      { threshold: 0.2 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="opacity-0 translate-y-4 transition-all duration-700 ease-out"
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const milestones = [
   {
-    icon: Target,
-    title: "第 1 天",
-    subtitle: "熟悉与规划",
-    description: "填写目标信息，AI 生成专属备考路线。了解自己的起点和终点。",
-    color: "bg-blue-500",
-    dot: "bg-blue-400",
+    day: "第 1 天",
+    title: "写下目标",
+    desc: "告诉 AI 你想考哪里。从这一天开始，小伴记住了你。",
   },
   {
-    icon: Calendar,
-    title: "第 1-30 天",
-    subtitle: "建立习惯",
-    description: "每天登录打卡、完成任务。AI 观察你的学习模式，开始记住你的习惯。",
-    color: "bg-emerald-500",
-    dot: "bg-emerald-400",
+    day: "第 7 天",
+    title: "开始习惯",
+    desc: "开始每天打开看一眼。小伴会记住你的学习时间、你的状态。",
   },
   {
-    icon: LineChart,
-    title: "第 30-90 天",
-    subtitle: "稳定提升",
-    description: "AI 通过数据发现薄弱环节，主动提醒调整。学习效率逐步提升。",
-    color: "bg-amber-500",
-    dot: "bg-amber-400",
+    day: "第 30 天",
+    title: "AI 开始了解你",
+    desc: "小伴知道你什么科目容易拖延、什么时间效率最高。开始有针对性地调整任务。",
   },
   {
-    icon: Trophy,
-    title: "第 90 天 +",
-    subtitle: "冲刺与上岸",
-    description: "AI 全程陪伴，心态波动时有鼓励，进度落后时有调整。直到走进考场那天。",
-    color: "bg-purple-500",
-    dot: "bg-purple-400",
+    day: "第 90 天",
+    title: "形成节奏",
+    desc: "你不再需要刻意坚持。学习变成了日常，小伴在旁边安静地陪你。",
+  },
+  {
+    day: "上岸那天",
+    title: "一起走完了",
+    desc: "三百天的记录都在那里。小伴会说：'我们一起走完了。'",
   },
 ];
 
 export default function GrowthTimeline() {
   return (
     <section className="bg-[#0F172A] px-5 py-20 md:py-28">
-      <div className="mx-auto max-w-5xl">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-            用越久，AI 越懂你
+      <div className="mx-auto max-w-2xl">
+        <FadeInSection delay={0}>
+          <h2 className="text-center text-xl font-bold tracking-tight text-white md:text-2xl">
+            用越久，它越懂你
           </h2>
-          <p className="mt-3 text-sm text-white/40">
-            这不是一个用完就扔的工具，而是一个陪你成长的教练
+          <p className="mx-auto mt-2 max-w-sm text-center text-sm text-white/40">
+            不是第一天最好用，而是第三百天最了解你
           </p>
-        </div>
+        </FadeInSection>
 
-        <div className="relative mt-14">
-          {/* 中间连接线 */}
-          <div className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-gradient-to-b from-blue-500/30 via-emerald-500/30 via-amber-500/30 to-purple-500/30 md:block" />
-
-          <div className="space-y-10 md:space-y-16">
-            {phases.map((phase, i) => (
-              <div
-                key={phase.title}
-                className={`relative flex flex-col gap-4 md:flex-row md:items-start ${
-                  i % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-                }`}
-              >
-                <div className={`flex-1 ${i % 2 === 0 ? "md:text-right md:pr-12" : "md:pl-12"}`}>
+        <div className="mt-12">
+          {milestones.map((m, i) => (
+            <FadeInSection key={m.day} delay={i * 100}>
+              <div className="group relative flex gap-5 pb-10 last:pb-0">
+                {/* 左侧时间线 */}
+                <div className="flex flex-col items-center">
                   <div
-                    className={`rounded-xl border border-white/10 bg-white/[0.03] p-5 ${
-                      i % 2 === 0 ? "md:text-right" : ""
+                    className={`z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-all duration-300 ${
+                      i === milestones.length - 1
+                        ? "border-amber-400/50 bg-amber-400/10 text-amber-400"
+                        : "border-white/[0.08] bg-white/[0.03] text-white/40 group-hover:border-blue-400/40 group-hover:bg-blue-400/10 group-hover:text-blue-400"
                     }`}
-                  >
-                    <div className={`mb-2 flex items-center gap-2 ${i % 2 === 0 ? "md:justify-end" : ""}`}>
-                      <phase.icon className={`h-4 w-4 ${phase.color.replace("bg-", "text-")}`} />
-                      <span className={`text-xs font-semibold ${phase.color.replace("bg-", "text-")}`}>
-                        {phase.subtitle}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-semibold text-white">
-                      {phase.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-white/50">
-                      {phase.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 时间轴节点 */}
-                <div className="absolute left-0 top-0 z-10 md:left-1/2 md:-translate-x-1/2">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full ${phase.color} text-xs font-bold text-white shadow-lg shadow-black/20`}
                   >
                     {i + 1}
                   </div>
+                  {i < milestones.length - 1 && (
+                    <div className="h-full w-px bg-white/[0.04] group-hover:bg-blue-400/10 transition-colors" />
+                  )}
                 </div>
 
-                <div className="hidden flex-1 md:block" />
+                {/* 右侧内容 */}
+                <div className="min-w-0 flex-1 pb-4">
+                  <span className="text-xs font-medium text-white/30">{m.day}</span>
+                  <h3 className="mt-0.5 text-sm font-semibold text-white">{m.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-white/40">{m.desc}</p>
+                </div>
               </div>
-            ))}
-          </div>
+            </FadeInSection>
+          ))}
         </div>
       </div>
     </section>

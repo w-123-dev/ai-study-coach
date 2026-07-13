@@ -3,10 +3,11 @@ import { BookOpen } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import Hero from "@/components/landing/Hero";
 import CoachDifference from "@/components/landing/CoachDifference";
-import CoachFlow from "@/components/landing/CoachFlow";
+import PartnerShowcase from "@/components/landing/PartnerShowcase";
 import ProductDemo from "@/components/landing/ProductDemo";
 import GrowthTimeline from "@/components/landing/GrowthTimeline";
 import Trust from "@/components/landing/Trust";
+import FAQ from "@/components/landing/FAQ";
 import CTA from "@/components/landing/CTA";
 
 export default function HomePage() {
@@ -41,10 +42,11 @@ export default function HomePage() {
       <main>
         <Hero />
         <CoachDifference />
-        <CoachFlow />
+        <PartnerShowcase />
         <ProductDemo />
         <GrowthTimeline />
         <Trust />
+        <FAQ />
         <CTA />
       </main>
 
