@@ -46,17 +46,14 @@ function CompanionCard({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
         animate={{ y: [0, -5, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
       >
-        {/* glow behind avatar */}
         <motion.div
           className="absolute -top-4 -left-4 h-20 w-20 rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(94,168,255,0.12) 0%, transparent 60%)",
+            background: "radial-gradient(circle, rgba(94,168,255,0.15) 0%, transparent 60%)",
           }}
           animate={{ scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         />
-
-        {/* avatar row */}
         <div className="relative mb-5 flex items-center gap-3">
           <motion.div
             className="relative flex h-12 w-12 items-center justify-center rounded-full"
@@ -101,8 +98,6 @@ function CompanionCard({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
             </div>
           </div>
         </div>
-
-        {/* chat bubbles */}
         <motion.div
           className="space-y-2.5"
           initial="hidden"
@@ -145,8 +140,6 @@ function CompanionCard({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
             </motion.div>
           ))}
         </motion.div>
-
-        {/* bottom pulse */}
         <motion.div
           className="mt-5 flex items-center gap-2 border-t pt-4"
           style={{ borderColor: "rgba(255,255,255,0.04)" }}
@@ -183,7 +176,7 @@ function Particles() {
           animate={{
             y: [0, -30, 0, 20, 0],
             x: [0, 15, -10, 5, 0],
-            opacity: [0.12, 0.2, 0.08, 0.18, 0.12],
+            opacity: [0.25, 0.45, 0.15, 0.35, 0.25],
           }}
           transition={{
             duration: p.dur,
@@ -204,7 +197,7 @@ function Aurora() {
       <motion.div
         className="absolute -top-[10%] -left-[10%] h-[70%] w-[60%] rounded-full"
         style={{
-          background: "radial-gradient(ellipse, rgba(94,168,255,0.04) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse, rgba(94,168,255,0.08) 0%, transparent 60%)",
         }}
         animate={{
           x: [0, 40, -20, 0],
@@ -216,7 +209,7 @@ function Aurora() {
       <motion.div
         className="absolute top-[20%] -right-[5%] h-[50%] w-[50%] rounded-full"
         style={{
-          background: "radial-gradient(ellipse, rgba(101,209,138,0.025) 0%, transparent 50%)",
+          background: "radial-gradient(ellipse, rgba(101,209,138,0.06) 0%, transparent 50%)",
         }}
         animate={{
           x: [0, -30, 20, 0],
@@ -228,7 +221,7 @@ function Aurora() {
       <motion.div
         className="absolute bottom-[10%] left-[30%] h-[40%] w-[40%] rounded-full"
         style={{
-          background: "radial-gradient(ellipse, rgba(255,215,106,0.02) 0%, transparent 50%)",
+          background: "radial-gradient(ellipse, rgba(255,215,106,0.05) 0%, transparent 50%)",
         }}
         animate={{
           x: [0, 20, -30, 0],
@@ -247,10 +240,7 @@ function GridOverlay() {
     <div
       className="pointer-events-none absolute inset-0"
       style={{
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)
-        `,
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
         backgroundSize: "60px 60px",
       }}
       aria-hidden
@@ -274,6 +264,25 @@ function GradientText({ children, className }: { children: React.ReactNode; clas
   );
 }
 
+/* ── Center background glow ── */
+function CenterGlow({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
+  const glowX = useTransform(mouseX, [-1, 1], [-12, 12]);
+  const glowY = useTransform(mouseY, [-1, 1], [-12, 12]);
+
+  return (
+    <motion.div
+      className="absolute top-[18%] left-1/2 h-[55vh] w-[65vw] -translate-x-1/2 rounded-full"
+      style={{
+        background: "radial-gradient(ellipse, rgba(94,168,255,0.10) 0%, transparent 55%)",
+        x: glowX,
+        y: glowY,
+      }}
+      animate={{ scale: [1, 1.03, 1] }}
+      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+    />
+  );
+}
+
 /* ── Main Hero ── */
 export default function Hero() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -283,11 +292,6 @@ export default function Hero() {
   const smoothMouseX = useSpring(mouseX, { stiffness: 60, damping: 25 });
   const smoothMouseY = useSpring(mouseY, { stiffness: 60, damping: 25 });
 
-  /* parallax for background glow */
-  const glowX = useTransform(smoothMouseX, [-1, 1], [-8, 8]);
-  const glowY = useTransform(smoothMouseY, [-1, 1], [-8, 8]);
-
-  /* text parallax */
   const textX = useTransform(smoothMouseX, [-1, 1], [-4, 4]);
   const textY = useTransform(smoothMouseY, [-1, 1], [-4, 4]);
 
@@ -311,10 +315,9 @@ export default function Hero() {
     [mouseX, mouseY],
   );
 
-  /* scroll-driven section fade */
   const { scrollY } = useScroll();
-  const opacity = useTransform(scrollY, [0, 500], [1, 0]);
-  const scale = useTransform(scrollY, [0, 500], [1, 0.97]);
+  const heroOpacity = useTransform(scrollY, [0, 500], [1, 0]);
+  const heroScale = useTransform(scrollY, [0, 500], [1, 0.97]);
 
   return (
     <section
@@ -323,49 +326,39 @@ export default function Hero() {
       onMouseLeave={handleLeave}
       className="relative min-h-screen overflow-hidden"
       style={{
-        background: "linear-gradient(180deg, #08111f 0%, #0d1728 40%, #13203b 100%)",
+        background: "linear-gradient(180deg, #061222 0%, #0c1a30 35%, #0f1f3a 70%, #132545 100%)",
       }}
     >
-      {/* ---- Background layers ---- */}
+      {/* Layer 1: top warm glow */}
       <div className="pointer-events-none absolute inset-0">
-        {/* large radial glow top center */}
-        <motion.div
-          className="absolute top-0 left-1/2 h-[80vh] w-[80vw] -translate-x-1/2 rounded-full opacity-[0.15]"
+        <div
+          className="absolute -top-[20%] left-1/2 h-[90vh] w-[90vw] -translate-x-1/2 rounded-full opacity-[0.12]"
           style={{
-            background: "radial-gradient(ellipse, rgba(94,168,255,0.06) 0%, transparent 60%)",
-            x: glowX,
-            y: glowY,
+            background: "radial-gradient(ellipse, rgba(255,215,106,0.10) 0%, transparent 60%)",
           }}
-        />
-
-        {/* behind-headline glow */}
-        <motion.div
-          className="absolute top-[15%] left-1/2 h-[50vh] w-[60vw] -translate-x-1/2 rounded-full"
-          style={{
-            background: "radial-gradient(ellipse, rgba(94,168,255,0.04) 0%, transparent 50%)",
-            x: glowX,
-            y: glowY,
-          }}
-          animate={{ scale: [1, 1.04, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
+      {/* Layer 2: aurora */}
       <Aurora />
+
+      {/* Layer 3: center headline glow */}
+      <CenterGlow mouseX={smoothMouseX} mouseY={smoothMouseY} />
+
+      {/* Layer 4: grid */}
       <GridOverlay />
+
+      {/* Layer 5: particles */}
       <Particles />
 
-      {/* ---- Hero content ---- */}
+      {/* ---- Content ---- */}
       <motion.div
         className="relative z-10 mx-auto max-w-5xl px-5 pt-28 pb-28 md:pt-40 md:pb-40"
-        style={{ opacity, scale }}
+        style={{ opacity: heroOpacity, scale: heroScale }}
       >
         <div className="flex flex-col items-center gap-16 md:flex-row md:items-start md:gap-24">
-          {/* Left: emotional entry */}
-          <motion.div
-            className="flex-1 pt-4 text-center md:text-left"
-            style={{ x: textX, y: textY }}
-          >
+          {/* Left */}
+          <motion.div className="flex-1 pt-4 text-center md:text-left" style={{ x: textX, y: textY }}>
             {/* Badge */}
             <motion.p
               className="mb-5 text-sm font-medium tracking-wide text-amber-300/60"
@@ -438,17 +431,13 @@ export default function Hero() {
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               transition={{ duration: 0.6, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
             >
-              <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
-                className="group"
-              >
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="group">
                 <Link
                   href="/signup"
                   className="relative inline-flex h-11 items-center justify-center gap-2 overflow-hidden rounded-xl px-7 text-sm font-semibold text-[#0F172A] shadow-lg transition-all duration-300"
                   style={{
                     background: "linear-gradient(135deg, #ffffff 0%, #e8edf5 100%)",
-                    boxShadow: "0 8px 24px rgba(94,168,255,0.2), 0 2px 4px rgba(255,255,255,0.1)",
+                    boxShadow: "0 8px 24px rgba(94,168,255,0.25), 0 2px 4px rgba(255,255,255,0.1)",
                   }}
                 >
                   <span className="relative z-10">开始备考</span>
@@ -460,12 +449,6 @@ export default function Hero() {
                   >
                     →
                   </motion.span>
-                  <motion.div
-                    className="absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{
-                      background: "linear-gradient(135deg, #f0f5ff 0%, #d0d8e8 100%)",
-                    }}
-                  />
                 </Link>
               </motion.div>
 
@@ -479,16 +462,6 @@ export default function Hero() {
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                    e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-                  }}
                 >
                   了解更多
                 </Link>
@@ -501,17 +474,14 @@ export default function Hero() {
         </div>
       </motion.div>
 
-      {/* ---- fade to next section ---- */}
+      {/* fade to next section */}
       <div
-        className="pointer-events-none absolute bottom-0 left-0 right-0 h-40 z-10"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 z-10"
         style={{
           background: "linear-gradient(to bottom, transparent 0%, #0F172A 100%)",
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
         }}
       />
 
-      {/* ---- keyframes ---- */}
       <style>{`
         @keyframes gradientShift {
           0%, 100% { background-position: 0% 50%; }
