@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
-  BookOpen, Send, Loader2, LogOut, Sparkles, FileText,
+  BookOpen, Send, Loader2, Sparkles, MessageCircle,
 } from "lucide-react";
 
 interface ChatMessage {
@@ -28,7 +28,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     const hour = new Date().getHours();
-    setGreeting(hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好");
+    if (hour < 12) setGreeting("早上好");
+    else if (hour < 18) setGreeting("下午好");
+    else if (hour < 22) setGreeting("晚上好");
+    else setGreeting("还不睡吗");
   }, []);
 
   useEffect(() => {
@@ -40,7 +43,6 @@ export default function ChatPage() {
         return;
       }
 
-      // 检测是否已填写考研资料
       const { data: profile } = await supabase
         .from("student_profiles")
         .select("id")
@@ -117,7 +119,7 @@ export default function ChatPage() {
         }
       } else {
         const data = await res.json();
-        console.warn("发送失败:", data.error);
+        console.warn("发送失败", data.error);
       }
     } catch (e) {
       console.warn("请求失败:", e);
@@ -143,7 +145,7 @@ export default function ChatPage() {
 
   if (noProfile) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-gray-50">
         <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
             <Link href="/" className="flex items-center gap-2">
@@ -155,9 +157,9 @@ export default function ChatPage() {
         </header>
         <main className="flex flex-1 items-center justify-center px-5">
           <div className="text-center">
-            <FileText className="mx-auto h-8 w-8 text-gray-300" />
+            <BookOpen className="mx-auto h-8 w-8 text-gray-300" />
             <h2 className="mt-4 text-lg font-semibold text-gray-900">请先填写考研信息</h2>
-            <p className="mt-2 text-sm text-gray-500">AI需要了解你的目标才能和你聊学习</p>
+            <p className="mt-2 text-sm text-gray-500">我需要了解你的目标，才能和你聊学习</p>
             <Link href="/setup"
               className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-gray-900 px-5 text-sm font-medium text-white hover:bg-gray-800">
               去填写
@@ -169,15 +171,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-gray-50">
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
           <Link href="/" className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-blue-600" />
             <span className="text-[15px] font-semibold text-gray-900">AI考研教练</span>
           </Link>
-          <button onClick={handleLogout} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600">
-            <LogOut className="h-4 w-4" />退出
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">
+            退出
           </button>
         </div>
       </header>
@@ -189,9 +191,12 @@ export default function ChatPage() {
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
                 <Sparkles className="h-7 w-7 text-blue-600" />
               </div>
-              <h2 className="mt-4 text-lg font-semibold text-gray-900">{greeting}，有什么想问的？</h2>
+              <h2 className="mt-4 text-lg font-semibold text-gray-900">
+                {greeting}，我来陪你聊聊
+              </h2>
               <p className="mt-2 max-w-xs text-sm leading-relaxed text-gray-500">
-                可以问我关于学习计划、复习策略、<br />拖延问题、考试压力等等。
+                学习上的问题、复习的困惑、心里的焦虑，
+                <br />都可以和我说。我一直在这里。
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {["今天的学习计划怎么安排？", "最近总是拖延怎么办？", "我的复习进度正常吗？"].map((q) => (
@@ -211,7 +216,7 @@ export default function ChatPage() {
                 <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed md:max-w-[70%] ${
                   msg.role === "user"
                     ? "bg-gray-900 text-white"
-                    : "border border-gray-100 bg-gray-50 text-gray-900"
+                    : "border border-gray-100 bg-white text-gray-900 shadow-sm"
                 }`}>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                   <p className="mt-1 text-[10px] text-gray-400">
@@ -224,7 +229,7 @@ export default function ChatPage() {
             ))}
             {sending && (
               <div className="flex justify-start">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
                   <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                 </div>
               </div>
@@ -234,16 +239,21 @@ export default function ChatPage() {
         </div>
       </main>
 
+      {/* 输入区 */}
       <div className="border-t border-gray-100 bg-white px-5 py-3">
         <form onSubmit={handleSend} className="mx-auto flex max-w-3xl items-center gap-2">
           <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)}
-            placeholder="输入你的问题..." disabled={sending}
+            placeholder="说说什么事吧..." disabled={sending}
             className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none disabled:opacity-50" />
           <button type="submit" disabled={!input.trim() || sending}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40">
             <Send className="h-4 w-4" />
           </button>
         </form>
+        {/* 小伴提示 */}
+        <p className="mt-1.5 text-center text-[10px] text-gray-400">
+          小伴在旁边安静地陪着你
+        </p>
       </div>
     </div>
   );

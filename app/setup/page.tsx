@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -151,6 +151,7 @@ export default function SetupPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       <header className="border-b border-gray-100">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-5">
           <Link href="/" className="flex items-center gap-2">
@@ -192,14 +193,14 @@ export default function SetupPage() {
 
           {/* 标题 */}
           <h1 className="text-xl font-bold tracking-tight text-gray-900">
-            {step === 1 && "先告诉我你的目标"}
-            {step === 2 && "你的学习情况是怎样的"}
-            {step === 3 && "你最大的困难是什么"}
+            {step === 1 && "告诉我你的目标吧"}
+            {step === 2 && "让我了解你的起点"}
+            {step === 3 && "有什么想让我特别帮你的"}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {step === 1 && "了解你的目标院校和专业，AI才能制定针对性计划"}
-            {step === 2 && "让AI知道你的基础和学习时间，计划才能贴合实际"}
-            {step === 3 && "说出来，AI会重点帮助你攻克这些难关"}
+            {step === 1 && "告诉我你想考哪里，剩下的我们一起规划"}
+            {step === 2 && "不用怕基础差，知道起点才能走对路"}
+            {step === 3 && "说出来吧，这些我会一直记着帮你"}
           </p>
 
           {error && (
@@ -211,7 +212,7 @@ export default function SetupPage() {
           <form onSubmit={handleSubmit} className="mt-6">
             {/* ========== Step 1: 基础信息 ========== */}
             {step === 1 && (
-              <div className="space-y-5">
+              <div className="space-y-5" style={{ animation: "fadeIn 0.35s ease-out" }}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">考研年份</label>
                   <select value={examYear} onChange={(e) => setExamYear(Number(e.target.value))}
@@ -242,14 +243,14 @@ export default function SetupPage() {
                 </div>
 
                 <p className="pt-2 text-xs italic text-gray-400">
-                  💡 了解你的目标后，我才能为你量身定制学习计划
+                  💬 收到，你的目标我记住了
                 </p>
               </div>
             )}
 
             {/* ========== Step 2: 学习情况 ========== */}
             {step === 2 && (
-              <div className="space-y-5">
+              <div className="space-y-5" style={{ animation: "fadeIn 0.35s ease-out" }}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">当前学习水平</label>
                   <select value={level} onChange={(e) => setLevel(e.target.value)}
@@ -272,14 +273,14 @@ export default function SetupPage() {
                 </div>
 
                 <p className="pt-2 text-xs italic text-gray-400">
-                  💡 知道你的基础和时间，我才能设计合理的每日任务量
+                  💬 没关系，从今天开始一步步来
                 </p>
               </div>
             )}
 
             {/* ========== Step 3: 困难 ========== */}
             {step === 3 && (
-              <div className="space-y-5">
+              <div className="space-y-5" style={{ animation: "fadeIn 0.35s ease-out" }}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">薄弱科目</label>
                   <input type="text" value={weakSubjects} onChange={(e) => setWeakSubjects(e.target.value)}
@@ -289,6 +290,29 @@ export default function SetupPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">你最大的困难是什么</label>
+                  <div className="mt-1.5 mb-3 flex flex-wrap gap-2">
+                    {[
+                      { label: "数学太难", val: "数学基础差，做题困难" },
+                      { label: "单词记不住", val: "英语单词记不住，阅读困难" },
+                      { label: "专业课不知从哪开始", val: "专业课不知道从哪里开始复习" },
+                      { label: "坚持不下去", val: "学习容易分心，坚持不了几天" },
+                      { label: "焦虑失眠", val: "备考压力大，经常焦虑失眠" },
+                      { label: "时间不够用", val: "每天学习时间太少，完不成计划" },
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        onClick={() => setBiggestDifficulty(biggestDifficulty === item.val ? "" : item.val)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                          biggestDifficulty === item.val
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                   <textarea value={biggestDifficulty} onChange={(e) => setBiggestDifficulty(e.target.value)}
                     rows={3}
                     className="mt-1.5 block w-full resize-none rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
@@ -297,7 +321,7 @@ export default function SetupPage() {
                 </div>
 
                 <p className="pt-2 text-xs italic text-gray-400">
-                  💡 知道你的困难后，我会在每周总结中重点关注这些方面
+                  💬 记住了，以后我会特别关注这些
                 </p>
               </div>
             )}
@@ -332,7 +356,7 @@ export default function SetupPage() {
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      {existing ? "更新信息" : "生成我的考研计划"}
+                      {existing ? "更新信息" : "开始制定计划"}
                     </>
                   )}
                 </button>

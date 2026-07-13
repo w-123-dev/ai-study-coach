@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -479,24 +479,25 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-md">
+    <div className="min-h-screen bg-[#0F172A]">
+      {/* 顶部导航 */}
+      <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0F172A]/90 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-600" />
-            <span className="text-[15px] font-semibold tracking-tight text-gray-900">
+            <BookOpen className="h-5 w-5 text-blue-400" />
+            <span className="text-[15px] font-semibold tracking-tight text-white">
               AI考研教练
             </span>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/chat"
-              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+              className="flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              AI对话
+              AI陪伴
             </Link>
-            <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">
+            <button onClick={handleLogout} className="text-sm text-white/40 hover:text-white/60">
               退出
             </button>
           </div>
@@ -557,70 +558,47 @@ export default function DashboardPage() {
           </section>
         )}
 
-
-        {/* ========== 伙伴模块 ========== */}
-        {userId && (
-          <section className="mb-5">
-            <PartnerCard userId={userId} />
-          </section>
-        )}
-
-        {/* ========== 学习空间 ========== */}
-
-        {/* ========== 伙伴观察日志 ========== */}
-        {userId && (
-          <section className="mb-5">
-            <PartnerLogs />
-          </section>
-        )}
-        {userId && (
-          <section className="mb-5">
-            <StudySpace space={space} />
-          </section>
-        )}
-
-        {/* ========== 顶部：倒计时 + 连续打卡 ========== */}
+        {/* ========== 首屏：小伴的问候 ========== */}
         <section className="mb-5">
-          <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 p-5 text-white">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-300">{simpleGreeting}</p>
-                <p className="mt-0.5 text-sm text-white/80">{welcomeMessage}</p>
-                <h1 className="mt-1 text-lg font-bold tracking-tight">
-                  {profile?.school || "目标院校"} · {profile?.major || "目标专业"}
-                  <p className="mt-1 text-xs text-gray-400">{environmentLine}</p>
-                </h1>
+          <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-5 text-white">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-lg">
+                {simpleGreeting === '早上好' ? '🌤' : simpleGreeting === '下午好' ? '☀️' : '🌙'}
               </div>
-              <div className="text-right">
-                <div className="flex items-center gap-1.5">
-                  <Flame className="h-4 w-4 text-orange-400" />
-                  <span className="text-sm font-semibold">{streak}天</span>
-                </div>
-                <p className="mt-0.5 text-[11px] text-gray-400">连续打卡</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-medium leading-relaxed text-white/90">
+                  {welcomeMessage}
+                </p>
+                <p className="mt-1.5 flex items-center gap-2 text-[13px] text-white/50">
+                  <span>{profile?.school || '目标院校'} · {profile?.major || '目标专业'}</span>
+                  <span className="text-white/20">·</span>
+                  <span>距离考研 {daysUntilExam} 天</span>
+                </p>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <Target className="h-6 w-6" />
+            {streak > 0 && (
+              <div className="mt-3 flex items-center gap-1.5 text-[12px] text-orange-400/80">
+                <Flame className="h-3.5 w-3.5" />
+                连续学习了 {streak} 天
               </div>
-              <div>
-                <p className="text-[11px] text-gray-400">距离考研</p>
-                <p className="text-2xl font-bold tracking-tight">{daysUntilExam}<span className="ml-1 text-sm font-normal text-gray-300">天</span></p>
-              </div>
-              <div className="ml-auto flex items-center gap-1 text-xs text-gray-300">
-                <span>第 {currentWeek}/{totalWeeks} 周</span>
-              </div>
-            </div>
+            )}
           </div>
+        </section>
+
+        {/* ========== 小伴卡片 + 观察日志 + 学习空间 ========== */}
+        <section className="mb-5 space-y-3">
+          {userId && <PartnerCard userId={userId} />}
+          {userId && <PartnerLogs />}
+          {userId && <StudySpace space={space} />}
         </section>
 
         {/* ========== 核心区：今日任务 ========== */}
         <section className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900">
+            <h2 className="text-sm font-semibold text-white">
               今日任务
               {totalCount > 0 && (
-                <span className="ml-2 text-xs font-normal text-gray-400">
+                <span className="ml-2 text-xs font-normal text-white/40">
                   {completedCount}/{totalCount} 已完成
                 </span>
               )}
@@ -628,7 +606,7 @@ export default function DashboardPage() {
             {!checkin && totalCount > 0 && (
               <button
                 onClick={() => setShowCheckin(true)}
-                className="flex items-center gap-1 rounded-full bg-gray-900 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-800"
+                className="flex items-center gap-1 rounded-full bg-blue-500 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-400"
               >
                 <Sparkles className="h-3 w-3" />
                 打卡
@@ -637,18 +615,18 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {tasks.length === 0 && hasPlan && (
-              <div className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center">
+              <div className="rounded-xl border border-white/[0.06] bg-[#111827] px-5 py-8 text-center">
                 <CheckCircle2 className="mx-auto h-6 w-6 text-green-400" />
-                <p className="mt-2 text-sm text-gray-500">本周任务已全部完成，休息一下吧</p>
+                <p className="mt-2 text-sm text-white/50">本周任务已全部完成，休息一下吧</p>
               </div>
             )}
             {tasks.length === 0 && !hasPlan && (
-              <div className="rounded-xl border border-gray-200 bg-white px-5 py-8 text-center">
-                <BookOpen className="mx-auto h-6 w-6 text-gray-300" />
-                <p className="mt-2 text-sm text-gray-500">还没有学习计划，先去填写考研信息</p>
+              <div className="rounded-xl border border-white/[0.06] bg-[#111827] px-5 py-8 text-center">
+                <BookOpen className="mx-auto h-6 w-6 text-white/20" />
+                <p className="mt-2 text-sm text-white/50">还没有学习计划，先去填写考研信息</p>
                 <Link
                   href="/setup"
-                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-800"
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400"
                 >
                   去填写
                 </Link>
@@ -660,21 +638,21 @@ export default function DashboardPage() {
                 onClick={() => toggleTask(task.id, task.status)}
                 className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
                   task.status === "completed"
-                    ? "border-green-100 bg-green-50/50"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                    ? "border-green-500/20 bg-green-500/10"
+                    : "border-white/[0.06] bg-[#111827] hover:border-white/[0.12]"
                 }`}
               >
                 <div
                   className={`shrink-0 rounded-full border-2 p-0.5 transition-colors ${
                     task.status === "completed"
                       ? "border-green-500 bg-green-500 text-white"
-                      : "border-gray-300"
+                      : "border-white/20"
                   }`}
                 >
                   {task.status === "completed" ? (
                     <CheckCircle2 className="h-4 w-4" />
                   ) : (
-                    <Circle className="h-4 w-4 text-gray-300" />
+                    <Circle className="h-4 w-4 text-white/20" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -683,16 +661,16 @@ export default function DashboardPage() {
                       {task.subject}
                     </span>
                     {task.status === "completed" && (
-                      <span className="text-[11px] text-green-600 font-medium">已完成</span>
+                      <span className="text-[11px] text-green-400 font-medium">已完成</span>
                     )}
                   </div>
                   <p className={`mt-0.5 text-sm ${
-                    task.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"
+                    task.status === "completed" ? "text-white/40 line-through" : "text-white/80"
                   }`}>
                     {task.content}
                   </p>
                 </div>
-                <div className="shrink-0 text-xs text-gray-400">
+                <div className="shrink-0 text-xs text-white/40">
                   {task.planned_hours}h
                 </div>
               </button>
@@ -701,7 +679,7 @@ export default function DashboardPage() {
             {tasks.length > 3 && (
               <button
                 onClick={() => setTaskCollapsed(!taskCollapsed)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-200 bg-white px-4 py-2.5 text-xs text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/[0.06] bg-[#111827] px-4 py-2.5 text-xs text-white/40 transition-colors hover:border-white/[0.12] hover:text-white/60"
               >
                 <ChevronDown className={`h-4 w-4 transition-transform ${taskCollapsed ? "" : "rotate-180"}`} />
                 {taskCollapsed ? `展开全部 (共${tasks.length}个任务)` : "收起"}
@@ -714,17 +692,17 @@ export default function DashboardPage() {
         {/* ========== AI 教练建议 ========== */}
         {feedback && (
           <section className="mb-4 animate-fadeIn">
-            <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/20">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-400" />
                 </div>
-                <span className="text-xs font-semibold text-blue-800">AI教练反馈</span>
+                <span className="text-xs font-semibold text-blue-400">AI教练反馈</span>
               </div>
-              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{feedback}</p>
+              <p className="text-sm leading-relaxed text-white/70 whitespace-pre-wrap">{feedback}</p>
               <Link
                 href="/chat"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 和AI教练聊聊
@@ -738,18 +716,18 @@ export default function DashboardPage() {
           <section className="mb-4">
             <Link
               href="/chat"
-              className="flex items-center justify-between rounded-xl border border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400"
+              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#111827] p-4 transition-colors hover:border-white/[0.12]"
             >
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                  <MessageCircle className="h-4 w-4 text-gray-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06]">
+                  <MessageCircle className="h-4 w-4 text-white/40" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700">和AI教练聊聊</p>
-                  <p className="text-xs text-gray-400">学习计划、备考策略、心理调节...</p>
+                  <p className="text-sm font-medium text-white/70">和AI教练聊聊</p>
+                  <p className="text-xs text-white/40">学习计划、备考策略、心理调节...</p>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-300" />
+              <ChevronRight className="h-4 w-4 text-white/20" />
             </Link>
           </section>
         )}
@@ -757,16 +735,16 @@ export default function DashboardPage() {
         {/* ========== 本周进度 ========== */}
         {hasPlan && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">本周进度</h2>
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h2 className="mb-3 text-sm font-semibold text-white">本周进度</h2>
+            <div className="rounded-xl border border-white/[0.06] bg-[#111827] p-4">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-gray-500">总完成率</span>
-                  <span className="text-xs font-semibold text-gray-900">{weeklyStats.total > 0 ? Math.round((weeklyStats.completed / weeklyStats.total) * 100) : 0}%</span>
+                  <span className="text-xs text-white/40">总完成率</span>
+                  <span className="text-xs font-semibold text-white">{weeklyStats.total > 0 ? Math.round((weeklyStats.completed / weeklyStats.total) * 100) : 0}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gray-900 transition-all duration-500"
+                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
                     style={{ width: `${weeklyStats.total > 0 ? (weeklyStats.completed / weeklyStats.total) * 100 : 0}%` }}
                   />
                 </div>
@@ -780,11 +758,11 @@ export default function DashboardPage() {
                         <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${getSubjectColor(subject)}`}>
                           {subject}
                         </span>
-                        <span className="text-[11px] text-gray-500">
+                        <span className="text-[11px] text-white/40">
                           {stats.completed}/{stats.total}
                         </span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${rate >= 80 ? "bg-green-500" : rate >= 50 ? "bg-yellow-500" : "bg-red-400"}`}
                           style={{ width: `${rate}%` }}
@@ -794,11 +772,11 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
-              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-                <span className="text-xs text-gray-400">第 {currentWeek} 周</span>
+              <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
+                <span className="text-xs text-white/40">第 {currentWeek} 周</span>
                 <Link
                   href="/chat"
-                  className="flex items-center gap-0.5 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  className="flex items-center gap-0.5 text-xs font-medium text-white/60 hover:text-white"
                 >
                   <TrendingUp className="h-3 w-3" />
                   查看分析
@@ -810,17 +788,17 @@ export default function DashboardPage() {
 
         {/* ========== 打卡弹窗 ========== */}
         {showCheckin && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 pb-0 sm:items-center sm:pb-4">
-            <div className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl animate-slideUp">
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-0 sm:items-center sm:pb-4">
+            <div className="w-full max-w-md rounded-t-2xl bg-[#111827] p-5 sm:rounded-2xl animate-slideUp border border-white/[0.06]">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-gray-900">今日学习打卡</h2>
-                <button onClick={() => setShowCheckin(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                <h2 className="text-sm font-semibold text-white">今日学习打卡</h2>
+                <button onClick={() => setShowCheckin(false)} className="text-xs text-white/40 hover:text-white/60">
                   取消
                 </button>
               </div>
               <form onSubmit={handleCheckin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">今日学习时间（小时）</label>
+                  <label className="block text-xs font-medium text-white/60">今日学习时间（小时）</label>
                   <div className="mt-1.5 flex items-center gap-3">
                     <input
                       type="range"
@@ -829,14 +807,14 @@ export default function DashboardPage() {
                       step={0.5}
                       value={studyHours}
                       onChange={(e) => setStudyHours(Number(e.target.value))}
-                      className="flex-1 accent-gray-900"
+                      className="flex-1 accent-blue-500"
                     />
-                    <span className="w-10 text-center text-sm font-semibold text-gray-900">{studyHours}h</span>
+                    <span className="w-10 text-center text-sm font-semibold text-white">{studyHours}h</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">今天的情绪</label>
+                  <label className="block text-xs font-medium text-white/60">今天的情绪</label>
                   <div className="mt-1.5 flex gap-2">
                     {(["happy", "normal", "anxious", "tired"] as Emotion[]).map((key) => (
                       <button
@@ -845,8 +823,8 @@ export default function DashboardPage() {
                         onClick={() => setEmotion(key)}
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
                           emotion === key
-                            ? "border-gray-900 bg-gray-900 text-white"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                            ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                            : "border-white/[0.06] text-white/60 hover:border-white/[0.12]"
                         }`}
                       >
                         {EMOTION_LABELS[key]}
@@ -856,7 +834,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">今天的精力</label>
+                  <label className="block text-xs font-medium text-white/60">今天的精力</label>
                   <div className="mt-1.5 flex gap-2">
                     {(["high","medium","low"] as Energy[]).map((key) => (
                       <button
@@ -865,8 +843,8 @@ export default function DashboardPage() {
                         onClick={() => setEnergy(key)}
                         className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors ${
                           energy === key
-                            ? "border-gray-900 bg-gray-900 text-white"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                            ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                            : "border-white/[0.06] text-white/60 hover:border-white/[0.12]"
                         }`}
                       >
                         {ENERGY_LABELS[key]}
@@ -876,20 +854,20 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-600">今天遇到的问题（选填）</label>
+                  <label className="block text-xs font-medium text-white/60">今天遇到的问题（选填）</label>
                   <textarea
                     value={difficulties}
                     onChange={(e) => setDifficulties(e.target.value)}
                     placeholder="今天学习遇到什么困难？"
                     rows={2}
-                    className="mt-1.5 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none"
+                    className="mt-1.5 w-full resize-none rounded-lg border border-white/[0.06] bg-[#1a1f36] px-3 py-2 text-sm text-white placeholder-white/30 focus:border-blue-500/50 focus:outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-400 disabled:opacity-50"
                 >
                   {submitting ? (
                     <>
@@ -910,20 +888,20 @@ export default function DashboardPage() {
       </main>
 
       {/* ========== 底部导航 ========== */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-white/[0.06] bg-[#0F172A]">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-around px-5">
           <Link
             href="/dashboard"
-            className="flex flex-col items-center gap-0.5 text-xs font-medium text-gray-900"
+            className="flex flex-col items-center gap-0.5 text-xs font-medium text-blue-400"
           >
             <CheckCircle2 className="h-5 w-5" />
             学习
           </Link>
-          <Link href="/report" className="flex flex-col items-center gap-0.5 text-xs text-gray-400">
+          <Link href="/report" className="flex flex-col items-center gap-0.5 text-xs text-white/40">
             <TrendingUp className="h-5 w-5" />
             周报
           </Link>
-          <Link href="/chat" className="flex flex-col items-center gap-0.5 text-xs text-gray-400">
+          <Link href="/chat" className="flex flex-col items-center gap-0.5 text-xs text-white/40">
             <Sparkles className="h-5 w-5" />
             AI陪伴
           </Link>
@@ -956,5 +934,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-

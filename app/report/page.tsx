@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { WeeklyReportData, SubjectWeekData } from "@/lib/analysis/weekly-report";
 import { getWeekDateLabel } from "@/lib/analysis/weekly-report";
+import PartnerPerspective from "@/components/partner/PartnerPerspective";
 
 const subjectColors: Record<string, string> = {
   "数学": "bg-blue-50 text-blue-700 border-blue-200",
@@ -257,6 +258,9 @@ export default function WeeklyReportPage() {
                 </div>
               </div>
             </section>
+
+            {/* ========== 小伴的视角 ========== */}
+            <PartnerPerspective report={report} />
 
             {/* 链接到 AI 对话 */}
             <section>

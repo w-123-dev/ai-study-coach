@@ -130,7 +130,7 @@ export default function FocusMode({
 
           <div className="mt-4 flex flex-col items-center gap-1 py-4">
             <PartnerAvatar state={partnerState} size="lg" />
-            <p className="mt-2 text-xs text-white/40">{partnerName}会陪你</p>
+            <p className="mt-2 text-xs text-white/40">选一个时间，{partnerName}陪你一起</p>
           </div>
 
           <div className="space-y-2">
@@ -162,13 +162,13 @@ export default function FocusMode({
   if (phase === "focusing") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
-        <div className="flex flex-col items-center gap-6">
-          <PartnerAvatar state="studying" size="lg" />
-          <div className="text-5xl font-bold tracking-wider text-white tabular-nums">
-            {formatTime(remaining)}
-          </div>
-          <p className="text-xs text-white/30">专注中，{partnerName}陪着你</p>
-          <div className="flex gap-3">
+          <div className="flex flex-col items-center gap-6">
+            <PartnerAvatar state="studying" size="lg" />
+            <div className="text-5xl font-bold tracking-wider text-white tabular-nums">
+              {formatTime(remaining)}
+            </div>
+            <p className="text-xs text-white/30">{partnerName}也在认真学习，不打扰你</p>
+            <div className="flex gap-3">
             <button
               onClick={running ? () => {
                 if (intervalRef.current) clearInterval(intervalRef.current);
@@ -210,12 +210,12 @@ export default function FocusMode({
         <div className="flex flex-col items-center gap-4 py-6">
           <PartnerAvatar state={completed ? "happy" : "calm"} size="lg" />
           <h3 className="text-lg font-bold text-white">
-            {completed ? "专注完成！" : "先休息一下"}
+            {completed ? "做得很好，休息一下吧" : "没关系，下次继续"}
           </h3>
           <p className="text-center text-xs text-white/40">
             {completed
-              ? `${partnerName}为你高兴，${duration}分钟专注学习`
-              : `${partnerName}说没关系，休息一下`}
+              ? `小伴为你高兴，专注了${duration}分钟呢`
+              : `小伴说慢慢来，今天也很棒`}
           </p>
           {saving && (
             <div className="flex items-center gap-1.5 text-xs text-blue-400">

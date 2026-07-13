@@ -40,9 +40,35 @@ export default function PartnerCard({ userId }: { userId: string }) {
     loadPartner();
   }
 
-  // Behavior state machine — only when partner is loaded
   const topState = (partner?.state as PartnerState) || "calm";
   const behavior = usePartnerBehavior(topState);
+
+  function getDaysTogether(): number {
+    if (!partner?.created_at) return 0;
+    const created = new Date(partner.created_at);
+    return Math.floor((Date.now() - created.getTime()) / 86400000);
+  }
+
+  function getDaysMessage(): string {
+    const days = getDaysTogether();
+    if (days <= 1) return "刚刚开始一起学习";
+    if (days <= 3) return "刚开始一起学习呢";
+    if (days <= 7) return "一起学习一周了";
+    if (days <= 30) return `一起学习 ${days} 天了`;
+    if (days <= 100) return `已经相互陪伴 ${days} 天`;
+    if (days <= 200) return `一起走过了 ${days} 天`;
+    return `相伴第 ${days} 天`;
+  }
+
+  function getEncouragement(): string | null {
+    const days = getDaysTogether();
+    if (days <= 1) return "很高兴认识你";
+    if (days <= 7) return "每天进步一点点";
+    if (days <= 30) return "你已经坚持了这么久";
+    if (days <= 100) return "有你在的每一天都是好的";
+    if (days <= 200) return "时间证明了一切";
+    return "谢谢你的陪伴";
+  }
 
   if (loading) {
     return (
@@ -59,22 +85,22 @@ export default function PartnerCard({ userId }: { userId: string }) {
   const skinConfig = SKIN_CONFIGS[partner.skin] || SKIN_CONFIGS.default;
   const stateLabel = PARTNER_STATE_LABELS[partner.state as PartnerState] || "平静";
   const energyLabel = partner.energy >= 60 ? "充足" : partner.energy >= 30 ? "中等" : "较低";
-
-  const showGreeting = occasionGreeting;
+  const daysTogether = getDaysTogether();
+  const encouragement = getEncouragement();
 
   return (
     <>
       <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-4 transition-all hover:border-white/[0.1]">
         {/* Occasion greeting banner */}
-        {showGreeting && (
+        {occasionGreeting && (
           <div className="-mx-4 -mt-4 mb-3 rounded-t-2xl border-b border-white/[0.04] bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 px-4 py-2.5">
             <p className="text-center text-[13px] font-medium leading-relaxed text-white/70">
-              {showGreeting}
+              {occasionGreeting}
             </p>
           </div>
         )}
+
         <div className="flex items-start gap-3">
-          {/* Avatar with behavior animations */}
           <PartnerAvatar
             state={partner.state as PartnerState}
             behavior={behavior}
@@ -84,7 +110,6 @@ export default function PartnerCard({ userId }: { userId: string }) {
             onClick={() => setShowChat(true)}
           />
 
-          {/* Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-white">{partner.name}</span>
@@ -108,14 +133,16 @@ export default function PartnerCard({ userId }: { userId: string }) {
               <span className="text-[10px] text-white/40">{energyLabel}</span>
             </div>
 
-            {/* Info line */}
-            <div className="mt-2 flex items-center gap-3 text-[11px] text-white/40">
-              <span className="flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                认识 {partner.last_interaction_at
-                  ? Math.floor((Date.now() - new Date(partner.last_interaction_at).getTime()) / 86400000) + "天"
-                  : "刚开始"}
+            {/* 相伴天数（温暖化） */}
+            <div className="mt-2 flex flex-col gap-0.5">
+              <span className="text-[11px] text-white/50">
+                {getDaysMessage()}
               </span>
+              {encouragement && (
+                <span className="text-[11px] text-blue-400/70 italic">
+                  {encouragement}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -139,7 +166,6 @@ export default function PartnerCard({ userId }: { userId: string }) {
         </div>
       </div>
 
-      {/* Focus overlay */}
       {showFocus && (
         <FocusMode
           userId={userId}
@@ -150,7 +176,6 @@ export default function PartnerCard({ userId }: { userId: string }) {
         />
       )}
 
-      {/* Chat overlay */}
       {showChat && (
         <PartnerChat
           userId={userId}
