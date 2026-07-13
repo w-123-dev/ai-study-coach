@@ -1,783 +1,689 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { motion, useMotionValue, useSpring, useTransform, useScroll } from "framer-motion";
+import { motion, useMotionValue, useSpring } from "framer-motion";
+import {
+  Calendar,
+  Target,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Sparkles,
+  ArrowRight,
+  ChevronDown,
+} from "lucide-react";
 
-/* ============================================================
-   Particles — Layer 4
-   ============================================================ */
-const PARTICLE_COUNT = 100;
-const particles = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  r: 0.6 + Math.random() * 2.2,
-  dur: 25 + Math.random() * 40,
-  delay: Math.random() * -25,
-  dx: (Math.random() - 0.5) * 40,
-  dy: -8 - Math.random() * 25,
-  baseOp: 0.08 + Math.random() * 0.3,
-}));
+/* ──────────────── Utility Components ──────────────── */
 
-/* ============================================================
-   Chat Bubble Pool
-   ============================================================ */
-const CHAT_BUBBLES = [
-  "今天数学完成后，我们继续英语。",
-  "你昨天学得不错，继续加油。",
-  "数学连续三天完成了，很棒。",
-  "先做最简单的题，找回节奏。",
-  "知识点总结了吗？我帮你复习。",
-  "累了就休息，不差这十分钟。",
-];
+function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
 
-/* ============================================================
-   Aurora Blobs — Layer 2
-   ============================================================ */
-const AURORA_BLOBS = [
-  { color: "rgba(76,145,255,0.10)", x: 10, y: 5, w: 700, h: 700, dur: 22, dx: 45, dy: -25 },
-  { color: "rgba(139,92,246,0.08)", x: 65, y: 18, w: 600, h: 600, dur: 26, dx: -35, dy: 30 },
-  { color: "rgba(6,182,212,0.06)", x: 25, y: 52, w: 550, h: 550, dur: 29, dx: 30, dy: -20 },
-  { color: "rgba(76,145,255,0.05)", x: 72, y: 62, w: 500, h: 500, dur: 23, dx: -25, dy: 18 },
-];
+  useEffect(() => {
+    let start = 0;
+    const step = Math.max(1, Math.floor(value / 40));
+    ref.current = setInterval(() => {
+      start += step;
+      if (start >= value) {
+        setDisplay(value);
+        if (ref.current) clearInterval(ref.current);
+      } else {
+        setDisplay(start);
+      }
+    }, 25);
+    return () => {
+      if (ref.current) clearInterval(ref.current);
+    };
+  }, [value]);
 
-/* ============================================================
-   Grid — Layer 5
-   ============================================================ */
-function GridLayer() {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-0"
-      aria-hidden
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), " +
-          "linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-        backgroundSize: "64px 64px",
-      }}
-      animate={{ backgroundPosition: ["0px 0px", "64px 64px"] }}
-      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-    />
-  );
+  return <span>{display}{suffix}</span>;
 }
 
-/* ============================================================
-   Noise — Layer 6
-   ============================================================ */
-function NoiseLayer() {
+function ProgressBar({ value, color = "bg-blue-500" }: { value: number; color?: string }) {
   return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-[0.035] mix-blend-overlay"
-      style={{
-        backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-        backgroundSize: "200px 200px",
-      }}
-      aria-hidden
-    />
-  );
-}
-
-/* ============================================================
-   Aurora — Layer 2
-   ============================================================ */
-function AuroraLayer({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {AURORA_BLOBS.map((b, i) => {
-        const sx = useTransform(mouseX, [-1, 1], [-b.dx * 0.1, b.dx * 0.1]);
-        const sy = useTransform(mouseY, [-1, 1], [-b.dy * 0.1, b.dy * 0.1]);
-        return (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              left: b.x + "%",
-              top: b.y + "%",
-              width: b.w + "px",
-              height: b.h + "px",
-              background: "radial-gradient(circle, " + b.color + " 0%, transparent 70%)",
-              x: sx,
-              y: sy,
-            }}
-            animate={{
-              x: [0, b.dx * 0.6, -b.dx * 0.4, b.dx * 0.2, 0],
-              y: [0, b.dy * 0.5, -b.dy * 0.3, b.dy * 0.25, 0],
-              scale: [1, 1.06, 0.94, 1.03, 1],
-            }}
-            transition={{
-              duration: b.dur, repeat: Infinity, ease: "easeInOut", delay: i * 2,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/* ============================================================
-   Particles — Layer 4
-   ============================================================ */
-function ParticlesLayer({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {particles.map((p) => {
-        const px = useTransform(mouseX, [-1, 1], [-p.dx * 0.08, p.dx * 0.08]);
-        const py = useTransform(mouseY, [-1, 1], [-p.dy * 0.08, p.dy * 0.08]);
-        return (
-          <motion.div
-            key={p.id}
-            className="absolute rounded-full bg-white"
-            style={{
-              left: p.x + "%", top: p.y + "%",
-              width: p.r + "px", height: p.r + "px",
-              x: px, y: py,
-            }}
-            animate={{
-              y: [0, p.dy * 0.6, p.dy * 0.3, p.dy * 0.8, 0],
-              x: [0, p.dx * 0.4, -p.dx * 0.2, p.dx * 0.3, 0],
-              opacity: [p.baseOp, p.baseOp * 2, p.baseOp * 0.4, p.baseOp * 1.5, p.baseOp],
-              scale: [1, 1.4, 0.7, 1.2, 1],
-            }}
-            transition={{ duration: p.dur, repeat: Infinity, delay: p.delay, ease: "easeInOut" }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/* ============================================================
-   Breathing Radial Light — Layer 3
-   ============================================================ */
-function BreathingLight() {
-  return (
-    <div className="pointer-events-none absolute top-[12%] left-1/2 -translate-x-1/2" aria-hidden>
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
       <motion.div
-        className="h-[700px] w-[900px] rounded-full"
+        className={`h-full rounded-full ${color}`}
+        initial={{ width: 0 }}
+        animate={{ width: `${value}%` }}
+        transition={{ duration: 1.5, ease: "easeOut", delay: 0.8 }}
+      />
+    </div>
+  );
+}
+
+/* ──────────────── Aurora Background Layer ──────────────── */
+
+function AuroraBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Layer 1: Radial gradient base */}
+      <div
+        className="absolute inset-0"
         style={{
-          background: "radial-gradient(circle, rgba(76,145,255,0.12) 0%, transparent 55%)",
+          background: "radial-gradient(ellipse 80% 60% at 50% 30%, #172540 0%, #0B1426 45%, #070D17 100%)",
+        }}
+      />
+
+      {/* Layer 2: Animated aurora blobs */}
+      <motion.div
+        className="absolute -top-1/4 -left-1/4 h-[800px] w-[800px] rounded-full opacity-[0.15]"
+        style={{
+          background: "radial-gradient(circle, rgba(76,145,255,0.35) 0%, transparent 70%)",
+          filter: "blur(100px)",
+        }}
+        animate={{
+          x: [0, 60, -40, 30, 0],
+          y: [0, -50, 30, -20, 0],
+          scale: [1, 1.08, 0.95, 1.05, 1],
+        }}
+        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-1/3 -right-1/4 h-[600px] w-[600px] rounded-full opacity-[0.10]"
+        style={{
+          background: "radial-gradient(circle, rgba(130,90,255,0.25) 0%, transparent 70%)",
+          filter: "blur(100px)",
+        }}
+        animate={{
+          x: [0, -50, 40, -30, 0],
+          y: [0, 40, -60, 20, 0],
+          scale: [1, 0.92, 1.06, 0.97, 1],
+        }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+      />
+      <motion.div
+        className="absolute -bottom-1/4 left-1/3 h-[500px] w-[500px] rounded-full opacity-[0.08]"
+        style={{
+          background: "radial-gradient(circle, rgba(255,215,106,0.2) 0%, transparent 70%)",
+          filter: "blur(120px)",
+        }}
+        animate={{
+          x: [0, 30, -50, 20, 0],
+          y: [0, -30, 20, -40, 0],
+          scale: [1, 1.04, 0.96, 1.03, 1],
+        }}
+        transition={{ duration: 35, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+      />
+
+      {/* Layer 3: Grid */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+        }}
+      />
+
+      {/* Layer 4: Breathing light behind heading */}
+      <motion.div
+        className="absolute top-1/4 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.12]"
+        style={{
+          background: "radial-gradient(circle, rgba(76,145,255,0.30) 0%, transparent 70%)",
           filter: "blur(80px)",
         }}
-        animate={{ scale: [0.95, 1.08, 0.95], opacity: [0.12, 0.20, 0.12] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ scale: [0.95, 1.08, 0.95] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Layer 5: Noise texture */}
+      <div
+        className="absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
+          backgroundSize: "256px 256px",
+        }}
       />
     </div>
   );
 }
 
-/* ============================================================
-   Overlay — train-bob animation (like Lumora PNG overlay)
-   ============================================================ */
-function DriftOverlay() {
+/* ──────────────── Particles ──────────────── */
+
+function Particles() {
+  const count = 60;
+  const particles = Array.from({ length: count }, (_, i) => ({
+    id: i,
+    size: Math.random() * 2 + 1,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    opacity: Math.random() * 0.25 + 0.05,
+    duration: Math.random() * 30 + 20,
+    delay: Math.random() * 15,
+    driftX: (Math.random() - 0.5) * 40,
+  }));
+
   return (
-    <motion.div
-      className="pointer-events-none absolute inset-0 opacity-[0.06]"
-      aria-hidden
-      style={{
-        background:
-          "radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.03) 0%, transparent 50%), " +
-          "radial-gradient(ellipse at 70% 80%, rgba(76,145,255,0.03) 0%, transparent 50%)",
-      }}
-      animate={{ y: [0, -4, 0] }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-    />
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full bg-white"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            opacity: p.opacity,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, p.driftX, 0],
+            opacity: [p.opacity, p.opacity * 1.5, p.opacity],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: p.delay,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
-/* ============================================================
-   Partner Avatar
-   ============================================================ */
-function PartnerAvatar() {
+/* ──────────────── Dashboard Mockup ──────────────── */
+
+interface Task {
+  subject: string;
+  content: string;
+  progress: number;
+  time: string;
+  done: boolean;
+}
+
+const INITIAL_TASKS: Task[] = [
+  { subject: "数学", content: "函数与极限复习", progress: 70, time: "2h", done: false },
+  { subject: "英语", content: "核心词汇 80 个", progress: 40, time: "1h", done: false },
+  { subject: "数据结构", content: "链表基础练习", progress: 100, time: "1.5h", done: true },
+];
+
+const CHAT_MESSAGES = [
+  "今天数学完成后，我们继续英语。",
+  "先做最简单的题，找回节奏。",
+  "连续学习3天，状态不错。",
+  "函数极限是基础，慢慢来。",
+];
+
+function DashboardMockup({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
+  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [mounted, setMounted] = useState(false);
+  const [chatIndex, setChatIndex] = useState(0);
+  const [hoveredTask, setHoveredTask] = useState<number | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const interval = setInterval(() => {
+      setChatIndex((i) => (i + 1) % CHAT_MESSAGES.length);
+    }, 5500);
+    return () => clearInterval(interval);
+  }, []);
+
+  function toggleTask(index: number) {
+    setTasks((prev) =>
+      prev.map((t, i) =>
+        i === index
+          ? { ...t, done: !t.done, progress: t.done ? t.progress : 100 }
+          : t
+      )
+    );
+  }
+
+  const rotateX = useSpring(mouseY.get() * 0.15, { stiffness: 150, damping: 20 });
+  const rotateY = useSpring(mouseX.get() * -0.15, { stiffness: 150, damping: 20 });
+
+  useEffect(() => {
+    const unsubX = mouseX.on("change", (v: number) => rotateY.set(v * -0.15));
+    const unsubY = mouseY.on("change", (v: number) => rotateX.set(v * 0.15));
+    return () => { unsubX(); unsubY(); };
+  }, [mouseX, mouseY, rotateX, rotateY]);
+
+  if (!mounted) {
+    return <div className="h-[520px] w-full max-w-[480px] animate-pulse rounded-3xl bg-white/[0.03]" />;
+  }
+
   return (
     <motion.div
-      className="relative flex h-10 w-10 items-center justify-center"
-      animate={{ scale: [1, 1.04, 1] }}
-      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+      className="group relative w-full max-w-[480px]"
+      style={{ perspective: "1000px" }}
     >
+      {/* Glow */}
+      <div className="pointer-events-none absolute -inset-4 opacity-20 blur-3xl transition-all duration-1000 group-hover:opacity-40">
+        <div className="h-full w-full animate-pulse rounded-3xl bg-gradient-to-br from-blue-500/30 via-purple-500/10 to-transparent" />
+      </div>
+
+      {/* Glass Card */}
       <motion.div
-        className="absolute inset-0 rounded-full"
-        style={{ background: "radial-gradient(circle, rgba(251,191,36,0.13) 0%, transparent 70%)" }}
-        animate={{ scale: [1, 1.35, 1], opacity: [0.4, 0.85, 0.4] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <svg className="relative h-6 w-6 z-10" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="9" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.25)" strokeWidth="0.5" />
-        <motion.g animate={{ rotate: [0, 4, -4, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
-          <circle cx="9.5" cy="10.5" r="1.1" fill="rgba(251,191,36,0.5)" />
-          <circle cx="14.5" cy="10.5" r="1.1" fill="rgba(251,191,36,0.5)" />
-          <motion.rect
-            x="8.3" y="9.3" width="2.4" height="0.25" rx="0.12"
-            fill="#0b1220"
-            animate={{ scaleY: [0, 1, 1, 0] }}
-            transition={{ duration: 0.15, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" }}
-          />
-          <motion.rect
-            x="13.3" y="9.3" width="2.4" height="0.25" rx="0.12"
-            fill="#0b1220"
-            animate={{ scaleY: [0, 1, 1, 0] }}
-            transition={{ duration: 0.15, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" }}
-          />
-        </motion.g>
-        <motion.path
-          d="M9.5 15c1.5 0.8 3.5 0.8 5 0"
-          stroke="rgba(251,191,36,0.25)" strokeWidth="0.5" strokeLinecap="round"
-          animate={{ d: ["M9.5 15c1.5 0.8 3.5 0.8 5 0", "M9.5 14.5c1.5 1 3.5 1 5 0"] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        className="relative overflow-hidden rounded-3xl border border-white/[0.08] shadow-2xl shadow-black/50"
+        style={{
+          background: "rgba(17,24,39,0.60)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {/* ::before gradient border (Liquid Glass) */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-3xl"
+          style={{
+            padding: "1.2px",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.10) 25%, rgba(255,255,255,0) 45%, rgba(255,255,255,0) 55%, rgba(255,255,255,0.10) 75%, rgba(255,255,255,0.35) 100%)",
+            WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+            pointerEvents: "none",
+          }}
         />
-      </svg>
+
+        {/* Window bar */}
+        <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-full bg-[#FF5F56]" />
+            <div className="h-3 w-3 rounded-full bg-[#FFBD2E]" />
+            <div className="h-3 w-3 rounded-full bg-[#27C93F]" />
+          </div>
+          <div className="flex-1 text-center">
+            <span className="text-xs font-medium tracking-wide text-white/30">小伴 · 今天的学习</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4 p-5">
+          {/* Countdown + Goal */}
+          <motion.div
+            className="flex items-start justify-between"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
+            <div>
+              <div className="mb-1 flex items-center gap-1.5 text-xs text-white/40">
+                <Calendar className="h-3 w-3" />
+                距离考研
+              </div>
+              <div className="text-3xl font-bold tracking-tight text-white">
+                <AnimatedNumber value={166} />
+                <span className="ml-1 text-base font-normal text-white/40">天</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="mb-0.5 text-xs text-white/40">目标院校</div>
+              <div className="text-sm font-semibold text-white">北京邮电大学</div>
+              <div className="text-xs text-white/50">计算机科学与技术</div>
+            </div>
+          </motion.div>
+
+          {/* Weekly Progress */}
+          <motion.div
+            className="rounded-xl border border-white/[0.06] p-3.5 transition-all duration-300 hover:bg-white/[0.04]"
+            style={{ background: "rgba(255,255,255,0.03)" }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-white/60">本周进度</span>
+              <motion.span
+                className="text-sm font-bold text-emerald-400"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 1.2 }}
+              >
+                <AnimatedNumber value={68} suffix="%" />
+              </motion.span>
+            </div>
+            <ProgressBar value={68} color="bg-emerald-500" />
+          </motion.div>
+
+          {/* Today's Tasks */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.0 }}
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-semibold text-white/80">今日任务</span>
+            </div>
+            <div className="space-y-2">
+              {tasks.map((task, i) => (
+                <motion.div
+                  key={i}
+                  className="rounded-xl border border-white/[0.06] p-3 transition-all duration-200"
+                  style={{ background: "rgba(255,255,255,0.02)" }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 1.2 + i * 0.15 }}
+                  onMouseEnter={() => setHoveredTask(i)}
+                  onMouseLeave={() => setHoveredTask(null)}
+                  whileHover={{ y: -2, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }}
+                >
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => toggleTask(i)}
+                      className="mt-0.5 shrink-0 transition-all hover:scale-110 active:scale-90"
+                    >
+                      {task.done ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 drop-shadow-[0_0_4px_rgba(52,211,153,0.3)]" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-white/20 hover:text-white/40" />
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                            task.done ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.06] text-white/50"
+                          }`}
+                        >
+                          {task.subject}
+                        </span>
+                        <span className={`text-xs ${task.done ? "text-white/30 line-through" : "text-white/70"}`}>
+                          {task.content}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <ProgressBar
+                          value={task.progress}
+                          color={
+                            task.progress === 100
+                              ? "bg-emerald-500"
+                              : task.progress > 50
+                              ? "bg-blue-500"
+                              : "bg-amber-500"
+                          }
+                        />
+                        <span className="shrink-0 text-[10px] text-white/30">{task.progress}%</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 text-[10px] text-white/30">
+                      <Clock className="h-3 w-3" />
+                      {task.time}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* AI Coach Message */}
+          <motion.div
+            className="relative rounded-xl border border-blue-500/20 p-3.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_12px_rgba(59,130,246,0.1)]"
+            style={{
+              background: "linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.02) 100%)",
+            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.8 }}
+          >
+            <div className="absolute -top-1.5 left-4 h-3 w-3 rotate-45" style={{ background: "rgba(59,130,246,0.08)" }} />
+            <div className="flex items-start gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500/20">
+                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-blue-300">AI 教练</span>
+                  <motion.span
+                    className="text-[10px] text-white/20"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    刚刚
+                  </motion.span>
+                </div>
+                {/* Rotating chat messages */}
+                <div className="relative mt-0.5 h-10 overflow-hidden">
+                  {CHAT_MESSAGES.map((msg, i) => (
+                    <motion.p
+                      key={i}
+                      className="absolute left-0 right-0 text-xs leading-relaxed text-white/60"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={
+                        i === chatIndex
+                          ? { opacity: 1, y: 0 }
+                          : { opacity: 0, y: -10 }
+                      }
+                      transition={{ duration: 0.5 }}
+                    >
+                      {msg}
+                    </motion.p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Bottom glow line */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+      </motion.div>
     </motion.div>
   );
 }
 
-/* ============================================================
-   Countdown
-   ============================================================ */
-function CountdownBlock() {
-  const [count, setCount] = useState(183);
-  useEffect(() => {
-    const t = setInterval(() => setCount((c) => (c > 150 ? c - 1 : 182)), 5000);
-    return () => clearInterval(t);
-  }, []);
+/* ──────────────── Floating Stats Cards ──────────────── */
 
+const STAT_CARDS = [
+  { label: "今日专注", value: "87%", color: "border-blue-500/20" },
+  { label: "已连续学习", value: "14 天", color: "border-emerald-500/20" },
+  { label: "英语状态", value: "提升中", color: "border-amber-500/20" },
+];
+
+function FloatingStats() {
   return (
-    <div>
-      <p className="text-[10px] font-medium tracking-widest text-white/30 uppercase">距离考研</p>
-      <div className="flex items-baseline gap-1.5 mt-0.5">
-        <motion.span
-          key={count}
-          className="text-2xl font-bold tracking-tight text-white tabular-nums"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-        >
-          {count}
-        </motion.span>
-        <span className="text-xs font-medium text-white/40">Days</span>
+    <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 hidden lg:block">
+      <div className="mx-auto flex max-w-5xl items-center justify-center gap-4 pb-6">
+        {STAT_CARDS.map((card, i) => (
+          <motion.div
+            key={i}
+            className="rounded-xl border px-4 py-2.5 backdrop-blur-sm"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              borderColor: "rgba(255,255,255,0.06)",
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 2.5 + i * 0.15 }}
+            whileHover={{ y: -2, background: "rgba(255,255,255,0.06)" }}
+          >
+            <div className="text-[10px] text-white/40">{card.label}</div>
+            <div className="text-sm font-semibold text-white">{card.value}</div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   Progress Bar
-   ============================================================ */
-function ProgressBarAnimated({ value, delay = 2.5 }: { value: number; delay?: number }) {
-  return (
-    <div className="h-1 w-full rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
-      <motion.div
-        className="h-full rounded-full"
-        style={{ background: "linear-gradient(90deg, #5EA8FF, #7EC8E3)" }}
-        initial={{ width: "0%" }}
-        animate={{ width: value + "%" }}
-        transition={{ duration: 2, ease: "easeOut", delay }}
-      />
-    </div>
-  );
-}
+/* ──────────────── Main Hero ──────────────── */
 
-/* ============================================================
-   Rotating Chat Bubble
-   ============================================================ */
-function ChatRotator() {
-  const [index, setIndex] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setIndex((i) => (i + 1) % CHAT_BUBBLES.length), 5500);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div className="rounded-2xl rounded-tl-sm border px-4 py-3 liquid-glass-subtle">
-      <motion.p
-        key={index}
-        className="text-xs leading-relaxed text-white/60"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {CHAT_BUBBLES[index]}
-      </motion.p>
-      <motion.span
-        className="inline-block h-3 w-1 bg-blue-400/50 ml-0.5 align-middle"
-        animate={{ opacity: [1, 0, 1] }}
-        transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </div>
-  );
-}
-
-/* ============================================================
-   Dashboard Mockup (Liquid Glass)
-   ============================================================ */
-function DashboardMockup({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
-  const rotateX = useTransform(mouseY, [-1, 1], [2.5, -2.5]);
-  const rotateY = useTransform(mouseX, [-1, 1], [-2.5, 2.5]);
-  const cardX = useSpring(mouseX, { stiffness: 35, damping: 25 });
-  const cardY = useSpring(mouseY, { stiffness: 35, damping: 25 });
-
-  const tasks = [
-    { s: "数学", t: "函数与极限复习", p: 70, delay: 2.0 },
-    { s: "英语", t: "核心词汇 80 个", p: 45, delay: 2.3 },
-    { s: "数据结构", t: "链表基础练习", p: 100, delay: 2.6 },
-  ];
-
-  return (
-    <motion.div
-      className="w-full max-w-[380px] shrink-0 md:w-auto perspective-[1200px]"
-      initial={{ opacity: 0, y: 50, scale: 0.93, filter: "blur(8px)" }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 1.0, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-      style={{ x: cardX, y: cardY, rotateX, rotateY }}
-    >
-      <motion.div
-        className="relative rounded-[32px] p-5 shadow-2xl liquid-glass"
-        style={{ transformStyle: "preserve-3d" }}
-        animate={{ y: [0, -3, 0] }}
-        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <div className="flex items-start justify-between mb-5">
-          <CountdownBlock />
-          <PartnerAvatar />
-        </div>
-
-        <div className="mb-4">
-          <p className="text-[11px] font-medium text-white/40 mb-3 tracking-widest uppercase">
-            今日任务
-          </p>
-          <div className="space-y-2.5">
-            {tasks.map((task, i) => (
-              <motion.div
-                key={i}
-                className="flex items-center gap-3 rounded-xl border px-3 py-2.5"
-                style={{
-                  borderColor: "rgba(255,255,255,0.04)",
-                  background: "rgba(255,255,255,0.02)",
-                }}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: task.delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <motion.div
-                  className={
-                    "h-4 w-4 shrink-0 rounded border flex items-center justify-center " +
-                    (task.p === 100 ? "border-emerald-500/30 bg-emerald-500/10" : "border-white/10")
-                  }
-                  animate={task.p < 100 ? { scale: [1, 1.12, 1] } : {}}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
-                >
-                  {task.p === 100 && (
-                    <motion.svg
-                      className="h-2.5 w-2.5 text-emerald-400" viewBox="0 0 12 12" fill="none"
-                      initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-                      transition={{ delay: 2.8, duration: 0.3 }}
-                    >
-                      <path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </motion.svg>
-                  )}
-                </motion.div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-white/40">
-                      {task.s}
-                    </span>
-                    <span className={"truncate text-xs " + (task.p === 100 ? "text-white/30 line-through" : "text-white/70")}>
-                      {task.t}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-0.5 w-full rounded-full" style={{ background: "rgba(255,255,255,0.04)" }}>
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{
-                        background: task.p === 100
-                          ? "linear-gradient(90deg, #65D18A, #4ADE80)"
-                          : "linear-gradient(90deg, #5EA8FF, rgba(94,168,255,0.4))",
-                      }}
-                      initial={{ width: "0%" }}
-                      animate={{ width: task.p + "%" }}
-                      transition={{ duration: 1.5, delay: task.delay + 0.5, ease: "easeOut" }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-white/40 tracking-widest uppercase">本周进度</span>
-            <motion.span
-              className="text-[11px] font-medium text-blue-400/60 tabular-nums"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.2 }}
-            >
-              68%
-            </motion.span>
-          </div>
-          <ProgressBarAnimated value={68} delay={3.0} />
-        </div>
-
-        <ChatRotator />
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ============================================================
-   Floating Glass Stat Cards
-   ============================================================ */
-const STAT_CARDS = [
-  { id: "focus", label: "今日专注", value: "52 min", x: 85, y: 10, delay: 0 },
-  { id: "rate", label: "完成率", value: "87%", x: 5, y: 18, delay: 0.6 },
-  { id: "streak", label: "已连续学习", value: "14 天", x: 87, y: 46, delay: 1.2 },
-  { id: "english", label: "英语状态", value: "提升中 \u2191", x: 3, y: 60, delay: 1.8 },
-  { id: "advice", label: "AI 建议", value: "调整数学进度", x: 85, y: 75, delay: 2.4 },
-  { id: "rest", label: "休息提醒", value: "学习 45 分钟", x: 7, y: 82, delay: 3.0 },
-];
-
-function FloatingStatCards({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden hidden xl:block" aria-hidden>
-      {STAT_CARDS.map((card) => {
-        const cx = useTransform(mouseX, [-1, 1], [-4, 4]);
-        const cy = useTransform(mouseY, [-1, 1], [-4, 4]);
-        return (
-          <motion.div
-            key={card.id}
-            className="absolute rounded-xl liquid-glass-card px-3 py-2"
-            style={{
-              left: card.x + "%",
-              top: card.y + "%",
-              x: cx,
-              y: cy,
-            }}
-            initial={{ opacity: 0, y: 12, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: card.delay + 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <p className="text-[9px] font-medium text-white/30 tracking-wider">{card.label}</p>
-            <p className="text-sm font-semibold text-white/80 mt-0.5">{card.value}</p>
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ============================================================
-   Gradient Text
-   ============================================================ */
-function GradientText({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="bg-clip-text text-transparent"
-      style={{
-        backgroundImage: "linear-gradient(135deg, #ffffff 0%, #5EA8FF 30%, #FFD76A 65%, #ffffff 100%)",
-        backgroundSize: "400% 400%",
-        animation: "heroGrad 8s ease-in-out infinite",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-/* ============================================================
-   Scroll Indicator
-   ============================================================ */
-function ScrollIndicator() {
-  return (
-    <motion.div
-      className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 3.5, duration: 1 }}
-    >
-      <motion.div
-        className="flex flex-col items-center gap-1"
-        animate={{ y: [0, 4, 0] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <svg className="h-5 w-5 text-white/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-          <rect x="7" y="3" width="10" height="18" rx="5" />
-          <motion.line
-            x1="12" y1="8" x2="12" y2="12"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
-            animate={{ opacity: [1, 0.2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </svg>
-        <span className="text-[10px] font-medium text-white/20 tracking-widest">向下了解</span>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ============================================================
-   Hero — Main Component
-   ============================================================ */
 export default function Hero() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
+  const [mounted, setMounted] = useState(false);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const smoothMouseX = useSpring(mouseX, { stiffness: 35, damping: 20 });
-  const smoothMouseY = useSpring(mouseY, { stiffness: 35, damping: 20 });
 
-  const textX = useTransform(smoothMouseX, [-1, 1], [-2, 2]);
-  const textY = useTransform(smoothMouseY, [-1, 1], [-2, 2]);
-
-  const handleMouse = useMemo(
-    () => (e: React.MouseEvent) => {
-      const rect = sectionRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      mouseX.set((e.clientX - cx) / rect.width);
-      mouseY.set((e.clientY - cy) / rect.height);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - 0.5;
+      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      mouseX.set(x);
+      mouseY.set(y);
     },
-    [mouseX, mouseY],
+    [mouseX, mouseY]
   );
 
-  const handleLeave = useMemo(
-    () => () => { mouseX.set(0); mouseY.set(0); },
-    [mouseX, mouseY],
-  );
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const { scrollY } = useScroll();
-  const heroOpacity = useTransform(scrollY, [0, 500], [1, 0]);
-  const heroScale = useTransform(scrollY, [0, 500], [1, 0.97]);
+  if (!mounted) {
+    return (
+      <section className="relative min-h-screen bg-[#08111f]" />
+    );
+  }
 
   return (
-    <>
+    <section
+      className="relative min-h-screen overflow-hidden bg-[#08111f]"
+      onMouseMove={handleMouseMove}
+    >
+      {/* Background layers */}
+      <AuroraBackground />
+      <Particles />
+
+      {/* Main content */}
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-5 pt-24 lg:pt-0">
+        {/* Center content */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-12 lg:flex-row lg:gap-16">
+          {/* Left: Text */}
+          <motion.div
+            className="flex max-w-xl flex-col items-center text-center lg:items-start lg:text-left"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+          >
+            {/* Badge */}
+            <motion.div
+              className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-white/70"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+              initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+              whileHover={{ scale: 1.03, borderColor: "rgba(255,255,255,0.15)" }}
+            >
+              <span className="text-blue-300">✦</span>
+              AI 长期陪伴型考研教练
+            </motion.div>
+
+            {/* Heading */}
+            <h1 className="mb-4 text-4xl font-bold leading-[1.15] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+              <motion.span
+                className="block"
+                initial={{ opacity: 0, y: 30, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                不是一个人
+              </motion.span>
+              <motion.span
+                className="block"
+                initial={{ opacity: 0, y: 30, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                是陪你走完
+              </motion.span>
+              <motion.span
+                className="block bg-gradient-to-r from-blue-300 via-cyan-300 to-blue-200 bg-clip-text text-transparent"
+                style={{
+                  backgroundSize: "200% 100%",
+                  animation: "gradientShift 8s ease infinite",
+                }}
+                initial={{ opacity: 0, y: 30, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+              >
+                三百天的人。
+              </motion.span>
+            </h1>
+
+            {/* Subtitle */}
+            <motion.p
+              className="mb-8 max-w-lg text-sm leading-relaxed text-white/60 sm:text-base"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              从你写下目标那天起，小伴会记住你的目标、你的疲惫、你每一次想放弃的念头。
+              它不是工具。是在这三百天里，一直陪着你走的人。
+            </motion.p>
+
+            {/* CTA Buttons */}
+            <motion.div
+              className="flex items-center gap-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+              <Link href="/signup">
+                <motion.button
+                  className="group relative inline-flex h-11 items-center gap-2 rounded-xl bg-white px-6 text-sm font-semibold text-[#0F172A] shadow-lg shadow-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-white/20"
+                  whileHover={{ y: -2, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  开始备考
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </motion.button>
+              </Link>
+              <Link href="#learn-more">
+                <motion.button
+                  className="inline-flex h-11 items-center rounded-xl border border-white/[0.12] px-5 text-sm font-medium text-white/70 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:text-white/90"
+                  style={{ background: "rgba(255,255,255,0.03)" }}
+                  whileHover={{ y: -2, background: "rgba(255,255,255,0.06)" }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  了解更多
+                </motion.button>
+              </Link>
+            </motion.div>
+          </motion.div>
+
+          {/* Right: Dashboard Mockup */}
+          <motion.div
+            className="w-full max-w-[480px] shrink-0"
+            initial={{ opacity: 0, y: 30, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.9, delay: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            <DashboardMockup mouseX={mouseX} mouseY={mouseY} />
+          </motion.div>
+        </div>
+
+        {/* Floating Stats - desktop */}
+        <FloatingStats />
+      </div>
+
+      {/* Bottom fade transition */}
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-32"
+        style={{
+          background: "linear-gradient(to bottom, transparent 0%, #08111f 100%)",
+        }}
+      />
+
+      {/* Scroll indicator */}
+      <motion.div
+        className="absolute bottom-6 left-1/2 z-20 hidden -translate-x-1/2 flex-col items-center gap-1 lg:flex"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 2.5 }}
+      >
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <ChevronDown className="h-4 w-4 text-white/20" />
+        </motion.div>
+      </motion.div>
+
       <style>{`
-        /* ======== Liquid Glass ======== */
-        .liquid-glass {
-          background: rgba(255, 255, 255, 0.02);
-          background-blend-mode: luminosity;
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: none;
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
-          position: relative;
-          overflow: hidden;
-        }
-        .liquid-glass::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          padding: 1.2px;
-          background: linear-gradient(180deg,
-            rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.10) 25%,
-            rgba(255,255,255,0) 45%, rgba(255,255,255,0) 55%,
-            rgba(255,255,255,0.10) 75%, rgba(255,255,255,0.35) 100%);
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          pointer-events: none;
-        }
-
-        .liquid-glass-card {
-          background: rgba(255, 255, 255, 0.02);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: none;
-          box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.08);
-          position: relative;
-          overflow: hidden;
-        }
-        .liquid-glass-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          padding: 1px;
-          background: linear-gradient(180deg,
-            rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.08) 30%,
-            rgba(255,255,255,0) 50%, rgba(255,255,255,0.08) 70%,
-            rgba(255,255,255,0.30) 100%);
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          pointer-events: none;
-        }
-
-        .liquid-glass-subtle {
-          background: rgba(255, 255, 255, 0.015);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-        }
-
-        @keyframes heroGrad {
+        @keyframes gradientShift {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
         }
       `}</style>
-
-      <section
-        ref={sectionRef}
-        onMouseMove={handleMouse}
-        onMouseLeave={handleLeave}
-        className="relative min-h-screen overflow-hidden"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, #18284a 0%, #0e1930 40%, #0b1220 70%, #070d17 100%)",
-        }}
-      >
-        {/* Layer 2 — Aurora */}
-        <AuroraLayer mouseX={smoothMouseX} mouseY={smoothMouseY} />
-
-        {/* Layer 5 — Grid */}
-        <GridLayer />
-
-        {/* Layer 4 — Particles */}
-        <ParticlesLayer mouseX={smoothMouseX} mouseY={smoothMouseY} />
-
-        {/* Layer 6 — Noise */}
-        <NoiseLayer />
-
-        {/* Layer 3 — Breathing Light */}
-        <BreathingLight />
-
-        {/* Overlay — Like Lumora PNG train-bob */}
-        <DriftOverlay />
-
-        {/* Layer 7 — Floating Stat Cards */}
-        <FloatingStatCards mouseX={smoothMouseX} mouseY={smoothMouseY} />
-
-        {/* Layer 8 — Main Content */}
-        <motion.div
-          className="relative z-10 mx-auto max-w-6xl px-6 pt-32 pb-24 md:pt-40 md:pb-28"
-          style={{ opacity: heroOpacity, scale: heroScale }}
-        >
-          <div className="flex flex-col items-center gap-14 md:flex-row md:items-start md:justify-between">
-            {/* Left */}
-            <motion.div
-              className="flex-1 pt-4 text-center md:text-left max-w-xl"
-              style={{ x: textX, y: textY }}
-            >
-              {/* Badge */}
-              <motion.div
-                className="inline-flex items-center gap-1.5 rounded-full text-xs font-medium tracking-wide text-amber-300/60 mb-8 liquid-glass px-3.5 py-1.5"
-                initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <span>{'✦'}</span> AI 长期陪伴型考研教练
-              </motion.div>
-
-              {/* Headline */}
-              <motion.h1
-                className="text-[clamp(2rem,5.5vw,4rem)] font-bold leading-[1.08] tracking-tight"
-                initial="hidden"
-                animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
-              >
-                <motion.span
-                  className="block text-white"
-                  variants={{
-                    hidden: { opacity: 0, y: 50, filter: "blur(12px)" },
-                    visible: {
-                      opacity: 1, y: 0, filter: "blur(0px)",
-                      transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] },
-                    },
-                  }}
-                >
-                  不是一个人
-                </motion.span>
-                <motion.span
-                  className="block mt-1 text-white"
-                  variants={{
-                    hidden: { opacity: 0, y: 50, filter: "blur(12px)" },
-                    visible: {
-                      opacity: 1, y: 0, filter: "blur(0px)",
-                      transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] },
-                    },
-                  }}
-                >
-                  是陪你走完
-                </motion.span>
-                <motion.span
-                  className="block mt-1"
-                  variants={{
-                    hidden: { opacity: 0, y: 50, filter: "blur(12px)" },
-                    visible: {
-                      opacity: 1, y: 0, filter: "blur(0px)",
-                      transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] },
-                    },
-                  }}
-                >
-                  <GradientText>三百天</GradientText>的人。
-                </motion.span>
-              </motion.h1>
-
-              {/* Subtitle */}
-              <motion.p
-                className="mt-6 mx-auto md:mx-0 max-w-[560px] text-base leading-relaxed text-white/60 md:text-[15px] md:leading-8"
-                initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              >
-                \u4ECE\u4F60\u5199\u4E0B\u76EE\u6807\u90A3\u5929\u8D77\uFF0C\u5C0F\u4F34\u4F1A\u8BB0\u4F4F\u4F60\u7684\u76EE\u6807\u3001\u4F60\u7684\u75B2\u60EB\u3001\u4F60\u6BCF\u4E00\u6B21\u60F3\u653E\u5F03\u7684\u5FF5\u5934\u3002
-                \u5B83\u4E0D\u662F\u5DE5\u5177\u3002\u662F\u5728\u8FD9三百天\u91CC\uFF0C\u4E00\u76F4\u966A\u7740\u4F60\u8D70的人。
-              </motion.p>
-
-              {/* Buttons */}
-              <motion.div
-                className="mt-9 flex flex-col items-center gap-3 sm:flex-row md:justify-start"
-                initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 0.6, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
-                  <Link
-                    href="/signup"
-                    className="relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-xl px-8 text-sm font-semibold text-[#0F172A] shadow-lg transition-shadow duration-300"
-                    style={{
-                      background: "linear-gradient(135deg, #ffffff 0%, #e0e8f5 100%)",
-                      boxShadow: "0 8px 32px rgba(76,145,255,0.25)",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 12px 44px rgba(76,145,255,0.4)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 8px 32px rgba(76,145,255,0.25)"; }}
-                  >
-                    <span className="relative z-10">开始备考</span>
-                    <motion.span
-                      className="relative z-10 inline-block"
-                      initial={{ x: 0 }}
-                      whileHover={{ x: 4 }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      {'→'}
-                    </motion.span>
-                  </Link>
-                </motion.div>
-
-                <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
-                  <Link
-                    href="#"
-                    className="inline-flex h-12 items-center justify-center rounded-xl text-sm font-medium text-white/50 transition-all duration-300 liquid-glass px-8"
-                  >
-                    了解更多
-                  </Link>
-                </motion.div>
-              </motion.div>
-            </motion.div>
-
-            {/* Right: Dashboard */}
-            <DashboardMockup mouseX={smoothMouseX} mouseY={smoothMouseY} />
-          </div>
-        </motion.div>
-
-        {/* Scroll Indicator */}
-        <ScrollIndicator />
-
-        {/* Bottom fade */}
-        <div
-          className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 z-10"
-          style={{ background: "linear-gradient(to bottom, transparent 0%, #0F172A 100%)" }}
-        />
-      </section>
-    </>
+    </section>
   );
 }
