@@ -24,24 +24,46 @@ export default function PartnerChat({
   onClose,
   onInteraction,
 }: PartnerChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "partner",
-      content: `你好呀，我是${partner.name}。今天过得怎么样？`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [initialized, setInitialized] = useState(false);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // 获取问候上下文
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    async function loadGreeting() {
+      try {
+        const res = await fetch("/api/partner/state");
+        if (res.ok) {
+          const data = await res.json();
+          const greeting = data.yesterdayCare
+            ? `回来啦。${data.yesterdayCare}`
+            : `你好呀，我是${partner.name}。`;
+          setMessages([{ role: "partner", content: greeting }]);
+        } else {
+          setMessages([{ role: "partner", content: `你好呀，我是${partner.name}。` }]);
+        }
+      } catch {
+        setMessages([{ role: "partner", content: `你好呀，我是${partner.name}。` }]);
+      }
+      setInitialized(true);
+    }
+    loadGreeting();
+  }, [partner.name]);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (initialized) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, initialized]);
+
+  useEffect(() => {
+    if (initialized) {
+      inputRef.current?.focus();
+    }
+  }, [initialized]);
 
   async function handleSend() {
     const text = input.trim();
@@ -84,6 +106,20 @@ export default function PartnerChat({
   }
 
   const stateLabel = PARTNER_STATE_LABELS[partner.state as PartnerState] || "平静";
+
+  if (!initialized) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
+        <div
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 mx-3 mb-0 flex h-[70vh] w-full max-w-sm flex-col items-center justify-center rounded-t-2xl border border-white/[0.08] bg-[#111827] shadow-2xl md:mb-0 md:h-[480px] md:rounded-2xl">
+          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">

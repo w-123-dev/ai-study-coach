@@ -27,6 +27,87 @@ export async function getRecentMemories(
   return data || [];
 }
 
+/**
+ * 获取一条随机的旧记忆（14天以上、重要性>=3）
+ * 用于伙伴"突然想起"某件事
+ */
+export async function getRandomOldMemory(
+  userId: string
+): Promise<PartnerMemory | null> {
+  const supabase = createClient();
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const { data, error } = await supabase
+    .from("partner_memories")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("importance", 3)
+    .lt("created_at", fourteenDaysAgo.toISOString())
+    .order("last_recalled_at", { ascending: true, nullsFirst: true })
+    .limit(10);
+
+  if (error || !data || data.length === 0) return null;
+
+  // 随机选一条
+  const picked = data[Math.floor(Math.random() * data.length)];
+
+  // 更新回忆时间
+  await supabase
+    .from("partner_memories")
+    .update({ last_recalled_at: new Date().toISOString() })
+    .eq("id", picked.id);
+
+  return picked;
+}
+
+/**
+ * 获取一条重要里程碑记忆
+ * 专门搜索第一次事件：第一次焦虑、第一次完成连续学习等
+ */
+export async function getMilestoneMemory(
+  userId: string
+): Promise<PartnerMemory | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("partner_memories")
+    .select("*")
+    .eq("user_id", userId)
+    .or(`content.ilike.%第一%,content.ilike.%首次%,content.ilike.%开始%`)
+    .gte("importance", 3)
+    .order("created_at", { ascending: true })
+    .limit(3);
+
+  if (error || !data || data.length === 0) return null;
+
+  const picked = data[Math.floor(Math.random() * data.length)];
+
+  await supabase
+    .from("partner_memories")
+    .update({ last_recalled_at: new Date().toISOString() })
+    .eq("id", picked.id);
+
+  return picked;
+}
+
+/**
+ * 构建"突然想起"的记忆上下文
+ * 不分析、不总结，只是像朋友一样突然提到
+ */
+export function formatOldMemoryRecall(memory: PartnerMemory): string {
+  const daysAgo = Math.floor(
+    (Date.now() - new Date(memory.created_at).getTime()) / 86400000
+  );
+
+  if (daysAgo >= 60) {
+    return `（突然想起）${Math.floor(daysAgo / 30)}个月前你好像说过${memory.content}`;
+  }
+  if (daysAgo >= 30) {
+    return `（突然想起）一个月前你好像说过${memory.content}`;
+  }
+  return `（突然想起）${daysAgo}天前你好像说过${memory.content}`;
+}
+
 /** 格式化记忆为文字 */
 export function formatMemories(memories: PartnerMemory[]): string {
   if (!memories.length) return "";
@@ -37,7 +118,6 @@ export function formatMemories(memories: PartnerMemory[]): string {
 
 /**
  * 从用户消息中提取记忆
- * 用 AI 识别应该记住的信息
  */
 export async function extractMemoriesFromMessage(
   userId: string,
@@ -45,7 +125,6 @@ export async function extractMemoriesFromMessage(
   recentContext: string
 ): Promise<void> {
   const prompt = `你是一个观察者功能。从以下对话中，判断是否有值得"记住"的信息。
-
 对话上下文：${recentContext}
 用户说：${message}
 
@@ -57,8 +136,10 @@ export async function extractMemoriesFromMessage(
    - 某科很难（"数学看不懂"）
    - 用户习惯（"我一般晚上学"）
    - 重要事件（"下周期中考"）
+   - 第一次事件（"第一次连续学习三天""第一次做完一套题"）
 4. 每条记忆 1-10 个字，简洁
-5. 如果没什么值得记住的，返回 {"memories":[]}
+5. 对于第一次/重要的时刻，importance 给 4-5
+6. 如果没什么值得记住的，返回 {"memories":[]}
 
 返回严格 JSON 格式：
 {"memories":[{"category":"feeling|subject|habit|event|preference","content":"记忆内容","importance":1}]}`;
@@ -70,13 +151,11 @@ export async function extractMemoriesFromMessage(
       maxTokens: 500,
     });
 
-    // 解析 JSON
     const cleaned = result.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
     const extracted: MemoryExtract = JSON.parse(cleaned);
 
     if (!extracted.memories || extracted.memories.length === 0) return;
 
-    // 保存到数据库
     const supabase = createClient();
     const records = extracted.memories.map((m) => ({
       user_id: userId,
@@ -89,24 +168,26 @@ export async function extractMemoriesFromMessage(
     const { error } = await supabase.from("partner_memories").insert(records);
     if (error) console.warn("[PartnerMemory] 保存记忆失败:", error);
   } catch (e) {
-    // 记忆提取失败不应该影响主流程
     console.warn("[PartnerMemory] 提取记忆失败:", e);
   }
 }
 
 /**
  * 清理过期记忆
- * 仅保留最近30天的记忆
+ * 只清理低重要性（1-2）且超过30天的记忆
+ * 高重要性（3-5）的记忆永久保留
  */
 export async function cleanupOldMemories(userId: string): Promise<void> {
   const supabase = createClient();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+  // 只删除低重要性的旧记忆
   const { error } = await supabase
     .from("partner_memories")
     .delete()
     .eq("user_id", userId)
+    .lt("importance", 3)
     .lt("created_at", thirtyDaysAgo.toISOString());
 
   if (error) console.warn("[PartnerMemory] 清理失败:", error);

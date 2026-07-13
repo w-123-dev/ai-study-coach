@@ -11,6 +11,7 @@ import { usePartnerBehavior } from "@/lib/partner/behavior";
 
 export default function PartnerCard({ userId }: { userId: string }) {
   const [partner, setPartner] = useState<UserPartner | null>(null);
+  const [occasionGreeting, setOccasionGreeting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFocus, setShowFocus] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -25,6 +26,7 @@ export default function PartnerCard({ userId }: { userId: string }) {
       if (res.ok) {
         const data = await res.json();
         setPartner(data.partner);
+        setOccasionGreeting(data.occasionGreeting || null);
       }
     } catch (err) {
       console.error("Failed to load partner", err);
@@ -58,9 +60,19 @@ export default function PartnerCard({ userId }: { userId: string }) {
   const stateLabel = PARTNER_STATE_LABELS[partner.state as PartnerState] || "平静";
   const energyLabel = partner.energy >= 60 ? "充足" : partner.energy >= 30 ? "中等" : "较低";
 
+  const showGreeting = occasionGreeting;
+
   return (
     <>
       <div className="rounded-2xl border border-white/[0.06] bg-[#111827] p-4 transition-all hover:border-white/[0.1]">
+        {/* Occasion greeting banner */}
+        {showGreeting && (
+          <div className="-mx-4 -mt-4 mb-3 rounded-t-2xl border-b border-white/[0.04] bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 px-4 py-2.5">
+            <p className="text-center text-[13px] font-medium leading-relaxed text-white/70">
+              {showGreeting}
+            </p>
+          </div>
+        )}
         <div className="flex items-start gap-3">
           {/* Avatar with behavior animations */}
           <PartnerAvatar
