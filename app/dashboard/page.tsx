@@ -30,6 +30,7 @@ import PartnerCard from "@/components/partner/PartnerCard";
 import StudySpace from "@/components/partner/StudySpace";
 import PartnerLogs from "@/components/partner/PartnerLogs";
 import type { PartnerSpace } from "@/lib/partner/space";
+import { generateGreeting, getSimpleGreeting, getEnvironmentLine, getTimePeriod } from "@/lib/dashboard/environment";
 
 
 interface TodayCheckin {
@@ -457,10 +458,17 @@ export default function DashboardPage() {
   const completedCount = tasks.filter((t) => t.status === "completed").length;
   const totalCount = tasks.length;
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const welcomeMessage = generateGreeting({
+    timePeriod: getTimePeriod(),
+    daysUntilExam,
+    streak,
+    hasCheckedIn: !!checkin,
+    hasPlan,
+  });
+  const simpleGreeting = getSimpleGreeting();
+  const environmentLine = getEnvironmentLine(daysUntilExam, streak);
   const totalWeeks = plan?.weekly_plan?.length ?? 1;
 
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? "早上好" : currentHour < 18 ? "下午好" : "晚上好";
 
   if (loading) {
     return (
@@ -576,9 +584,11 @@ export default function DashboardPage() {
           <div className="rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 p-5 text-white">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-300">{greeting}，考研人</p>
+                <p className="text-sm font-medium text-gray-300">{simpleGreeting}</p>
+                <p className="mt-0.5 text-sm text-white/80">{welcomeMessage}</p>
                 <h1 className="mt-1 text-lg font-bold tracking-tight">
                   {profile?.school || "目标院校"} · {profile?.major || "目标专业"}
+                  <p className="mt-1 text-xs text-gray-400">{environmentLine}</p>
                 </h1>
               </div>
               <div className="text-right">
@@ -946,3 +956,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
