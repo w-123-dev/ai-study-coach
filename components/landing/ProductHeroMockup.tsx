@@ -103,7 +103,7 @@ export default function ProductHeroMockup() {
           </div>
           <div className="flex-1 text-center">
             <span className="text-xs font-medium tracking-wide text-white/30">
-              AI考研教练 · 个人Dashboard
+              小伴 · 今天的学习
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-white/15">
