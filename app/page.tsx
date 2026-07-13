@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState } from "react";
-import AuthButton from "@/components/AuthButton";
 import Hero from "@/components/landing/Hero";
 import CoachDifference from "@/components/landing/CoachDifference";
 import PartnerShowcase from "@/components/landing/PartnerShowcase";
@@ -27,7 +26,7 @@ export default function HomePage() {
     <>
       <AnimatedBackground />
 
-      {/* 导航栏 */}
+      {/* Navbar */}
       <motion.header
         className="fixed top-0 right-0 left-0 z-50"
         initial={{ y: -20, opacity: 0 }}
@@ -86,7 +85,7 @@ export default function HomePage() {
         </motion.div>
       </motion.header>
 
-      <main className="relative z-10">
+      <main>
         <Hero />
         <CoachDifference />
         <PartnerShowcase />
@@ -97,8 +96,8 @@ export default function HomePage() {
         <CTA />
       </main>
 
-      {/* 页脚 */}
-      <footer className="relative z-10 border-t border-white/10 bg-[#0F172A] px-5 py-10">
+      {/* Footer */}
+      <footer className="border-t border-white/10 bg-[#0F172A] px-5 py-10">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-blue-400" />
@@ -107,15 +106,9 @@ export default function HomePage() {
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-white/30">
-            <Link href="/" className="hover:text-white/60">
-              首页
-            </Link>
-            <Link href="/login" className="hover:text-white/60">
-              登录
-            </Link>
-            <Link href="/signup" className="hover:text-white/60">
-              注册
-            </Link>
+            <Link href="/" className="hover:text-white/60">首页</Link>
+            <Link href="/login" className="hover:text-white/60">登录</Link>
+            <Link href="/signup" className="hover:text-white/60">注册</Link>
           </div>
           <p className="text-xs text-white/30">
             &copy; {new Date().getFullYear()} AI考研私人教练
