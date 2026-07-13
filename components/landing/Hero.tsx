@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
@@ -52,7 +52,7 @@ function LiquidGlass({ children, className = "", style = {} }: any) {
   );
 }
 
-/* ──────────────── TN overLay ──────────────── */
+/* ──────────────── Glass Overlay (Lumora PNG membrane effect) ──────────────── */
 
 function GlassOverlay() {
   return (
@@ -74,17 +74,15 @@ function GlassOverlay() {
   );
 }
 
-/* ──────────────── Background ──────────────── */
+/* ──────────────── Aurora Background ──────────────── */
 
 function AuroraBackground() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* Base gradient */}
       <div className="absolute inset-0" style={{
         background: "radial-gradient(ellipse 80% 60% at 50% 30%, #172540 0%, #0B1426 45%, #070D17 100%)",
       }} />
 
-      {/* Animated blobs */}
       <motion.div
         className="absolute -top-1/4 -left-1/4 h-[800px] w-[800px] rounded-full opacity-[0.15]"
         style={{ background: "radial-gradient(circle, rgba(76,145,255,0.35) 0%, transparent 70%)", filter: "blur(100px)" }}
@@ -104,13 +102,11 @@ function AuroraBackground() {
         transition={{ duration: 35, repeat: Infinity, ease: "easeInOut", delay: 5 }}
       />
 
-      {/* Grid */}
       <div className="absolute inset-0 opacity-[0.04]" style={{
         backgroundImage: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
         backgroundSize: "64px 64px",
       }} />
 
-      {/* Breathing light */}
       <motion.div
         className="absolute top-1/4 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.12]"
         style={{ background: "radial-gradient(circle, rgba(76,145,255,0.30) 0%, transparent 70%)", filter: "blur(80px)" }}
@@ -118,7 +114,6 @@ function AuroraBackground() {
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Noise */}
       <div className="absolute inset-0 opacity-[0.025]" style={{
         backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
         backgroundSize: "256px 256px",
@@ -298,7 +293,7 @@ function DashboardMockup({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
               </div>
             </motion.div>
 
-            {/* AI Chat Bubble */}
+            {/* AI Coach Chat Bubble */}
             <motion.div
               className="relative rounded-xl border border-blue-500/20 p-3.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_12px_rgba(59,130,246,0.1)]"
               style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.02) 100%)" }}
@@ -327,7 +322,6 @@ function DashboardMockup({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
           </div>
         </motion.div>
 
-        {/* Bottom glow */}
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
       </LiquidGlass>
     </motion.div>
@@ -395,12 +389,10 @@ function HeroNav() {
   return (
     <header className="absolute top-0 left-0 right-0 z-20 px-5 pt-4">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <span className="text-lg font-bold tracking-tight text-white">AI教练</span>
         </Link>
 
-        {/* Desktop Nav */}
         <div className="hidden items-center gap-4 md:flex">
           <LiquidGlass className="flex items-center gap-4 rounded-full px-5 py-1.5">
             <Link href="/login" className="text-sm text-white/70 transition-colors hover:text-white">登录</Link>
@@ -416,7 +408,6 @@ function HeroNav() {
           </LiquidGlass>
         </div>
 
-        {/* Mobile hamburger */}
         <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
           <LiquidGlass className="flex h-9 w-9 items-center justify-center rounded-full">
             <motion.div animate={{ rotate: mobileOpen ? 90 : 0, scale: mobileOpen ? 0.75 : 1 }} transition={{ duration: 0.3 }}>
@@ -426,7 +417,6 @@ function HeroNav() {
         </button>
       </div>
 
-      {/* Mobile Overlay */}
       {mobileOpen && (
         <motion.div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6"
@@ -480,17 +470,14 @@ export default function Hero() {
 
   return (
     <section className="relative h-screen overflow-hidden bg-[#08111f]" onMouseMove={handleMouseMove}>
-      {/* Background layers */}
       <AuroraBackground />
       <Particles />
 
       {/* Glass membrane overlay — train-bob animation */}
       <GlassOverlay />
 
-      {/* Nav */}
       <HeroNav />
 
-      {/* Main Content — centered, full viewport */}
       <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col px-5 pt-20 lg:pt-0">
         <div className="flex flex-1 flex-col items-center justify-center gap-8 lg:flex-row lg:gap-16">
           {/* Left: Text */}
@@ -571,17 +558,13 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        {/* Bottom spacer pushes floats to bottom */}
         <div className="flex-1" />
       </div>
 
-      {/* Floating Stats */}
       <FloatingStats />
 
-      {/* Bottom fade */}
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-32" style={{ background: "linear-gradient(to bottom, transparent 0%, #08111f 100%)" }} />
 
-      {/* Scroll indicator */}
       <motion.div className="absolute bottom-6 left-1/2 z-20 hidden -translate-x-1/2 flex-col items-center gap-1 lg:flex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 2.5 }}>
         <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}>
           <ChevronDown className="h-4 w-4 text-white/20" />
